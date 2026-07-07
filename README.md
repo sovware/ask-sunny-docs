@@ -1,12 +1,9 @@
-# AI Sunny Architecture Documentation
+# Ask Sunny Architecture Documentation
 
-AI Sunny, also called Ask Sunny in the product brief, is a single-tenant AI concierge for Palm Beach Mama Club. It uses WordPress and Directorist as the source of truth for local business and event content, and a separate backend service for conversational RAG, retrieval, persistence, and OpenAI integration.
+Ask Sunny is a single-tenant AI concierge for Palm Beach Mama Club. It uses WordPress and Directorist as the source of truth for local business and event content, and a separate backend service for conversational RAG, retrieval, persistence, and OpenAI integration.
 
 This documentation is based on:
 
-- Product requirements in `__plans_v2/prd.md`.
-- The existing Directorist AI Search WordPress plugin in `directorist-ai-search`.
-- The existing AI Search server in `__server/ai-search-api-server`.
 - OpenAI Responses API documentation: https://developers.openai.com/api/docs/guides/migrate-to-responses and https://developers.openai.com/api/reference/responses/overview/
 - OpenAI conversation state documentation: https://developers.openai.com/api/docs/guides/conversation-state
 - LangGraph JavaScript documentation: https://docs.langchain.com/oss/javascript/langgraph/overview
@@ -39,11 +36,11 @@ flowchart LR
   Server --> OpenAI[OpenAI Responses API + embeddings]
 ```
 
-WordPress remains responsible for collecting site content, rendering the website widget, protecting browser-facing REST endpoints, and sending server-side requests to the AI Sunny backend. The launch content sources are the Directorist Business Directory, Directorist Events Directory, business reviews, Weekend Picks, and sponsored/promotional content. The backend owns chat orchestration, retrieval, embeddings, conversation persistence, ranking, citations, analytics, and future mobile-app access.
+WordPress remains responsible for collecting site content, rendering the website widget, protecting browser-facing REST endpoints, and sending server-side requests to the Ask Sunny backend. The launch content sources are the Directorist Business Directory, Directorist Events Directory, business reviews, Weekend Picks, and sponsored/promotional content. The backend owns chat orchestration, retrieval, embeddings, conversation persistence, ranking, citations, analytics, and future mobile-app access.
 
 ## Core Decisions
 
-- AI Sunny is single-tenant. Do not copy AI Search's multi-tenant `sites` and `site_domains` model as the main architecture.
+- Ask Sunny is single-tenant.
 - Browser JavaScript calls WordPress REST only. Browser code never receives the OpenAI API key or backend API keys.
 - The backend uses LangGraph for orchestration and short-term workflow state. Application tables store durable conversation, message, tool-call, profile, and usage records.
 - The backend uses OpenAI Responses API for agentic model calls, tool use, streaming, and multi-turn reasoning. Implementation should verify the current recommended model before launch.
