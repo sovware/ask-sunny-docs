@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The AI Sunny server is the backend for the Ask Sunny concierge. It receives trusted server-side requests from WordPress, and later from a mobile app, then performs conversational RAG over Palm Beach Mama Club content.
+The Ask Sunny server receives trusted server-side requests from WordPress, and later from a mobile app, then performs conversational RAG over Palm Beach Mama Club content.
 
 The server is responsible for:
 
@@ -18,7 +18,7 @@ The server is responsible for:
 ## Runtime Stack
 
 - Runtime: Bun.
-- Language: JavaScript, following the existing AI Search server convention.
+- Language: JavaScript, following the backend service's Bun/Hono runtime pattern.
 - HTTP framework: Hono.
 - Agent framework: LangGraph.js.
 - Model API: OpenAI Responses API.
@@ -36,25 +36,25 @@ PORT=3100
 LOG_LEVEL=info
 REQUEST_BODY_LIMIT=2mb
 
-AI_SUNNY_INSTALLATION_PROVISIONING_KEY=replace-with-long-random-secret
-AI_SUNNY_ADMIN_EMAIL=admin@example.com
-AI_SUNNY_ADMIN_PASSWORD=replace-with-strong-password
-AI_SUNNY_ADMIN_SESSION_TTL_SECONDS=86400
+ASK_SUNNY_INSTALLATION_PROVISIONING_KEY=replace-with-long-random-secret
+ASK_SUNNY_ADMIN_EMAIL=admin@example.com
+ASK_SUNNY_ADMIN_PASSWORD=replace-with-strong-password
+ASK_SUNNY_ADMIN_SESSION_TTL_SECONDS=86400
 
-DATABASE_URL=postgres://ai_sunny:strong-password@127.0.0.1:5432/ai_sunny
+DATABASE_URL=postgres://ask_sunny:strong-password@127.0.0.1:5432/ask_sunny
 PG_POOL_MAX=10
 
 OPENAI_API_KEY=replace-with-openai-api-key
 OPENAI_RESPONSES_URL=https://api.openai.com/v1/responses
 OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-AI_SUNNY_CHAT_MODEL=gpt-5.1
-AI_SUNNY_EMBEDDING_MODEL=text-embedding-3-small
-AI_SUNNY_EMBEDDING_DIMENSIONS=1536
+ASK_SUNNY_CHAT_MODEL=gpt-5.1
+ASK_SUNNY_EMBEDDING_MODEL=text-embedding-3-small
+ASK_SUNNY_EMBEDDING_DIMENSIONS=1536
 OPENAI_REQUEST_TIMEOUT_MS=45000
 
 REDIS_ENABLED=false
 REDIS_URL=redis://127.0.0.1:6379
-REDIS_KEY_PREFIX=ai_sunny
+REDIS_KEY_PREFIX=ask_sunny
 
 MAX_CHAT_INPUT_CHARS=4000
 MAX_RETRIEVAL_RESULTS=12
@@ -117,7 +117,7 @@ flowchart TD
   Persist --> End([JSON or SSE output])
 ```
 
-LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in `SERVER_DATABASE_SCHEMA.md`; checkpoints are for graph recovery and short-term orchestration, not the only audit log.
+LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in [`SERVER_DATABASE_SCHEMA.md`](SERVER_DATABASE_SCHEMA.md); checkpoints are for graph recovery and short-term orchestration, not the only audit log.
 
 ## OpenAI Responses API Usage
 
@@ -194,7 +194,7 @@ flowchart TD
 sequenceDiagram
   participant Browser
   participant WP as WordPress REST
-  participant API as AI Sunny Server
+  participant API as Ask Sunny Server
   participant Graph as LangGraph
   participant DB as PostgreSQL
   participant OAI as OpenAI Responses
@@ -217,10 +217,9 @@ sequenceDiagram
 ```mermaid
 flowchart TD
   Mobile[Mobile app] --> MobileAuth[Mobile auth token]
-  MobileAuth --> Server[AI Sunny backend]
+  MobileAuth --> Server[Ask Sunny backend]
   Server --> Profile[User profile and favorites]
   Server --> Graph[LangGraph chat flow]
   Graph --> Content[Business/event retrieval]
   Graph --> Response[Personalized answer]
 ```
-

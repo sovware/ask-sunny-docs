@@ -20,7 +20,15 @@ Future content sources:
 
 ## Retrieval Model
 
-AI Sunny should combine structured filtering and semantic retrieval. Do not rely on a generic website-context chatbot.
+Ask Sunny should combine structured filtering and semantic retrieval. Do not rely on a generic website-context chatbot.
+
+Representative questions:
+
+- "I have a 3-year-old and a 7-year-old. What are some fun things to do near Palm Beach this Saturday?"
+- "Where can I find indoor activities if it rains today?"
+- "What's a good restaurant with a playground near Palm Beach?"
+
+The retrieval layer should search available directory and event data before the model generates an answer. It should reason over structured fields such as location, date, age suitability, amenities, budget, categories, interests, reviews, custom fields, and featured or sponsored status.
 
 Structured filters:
 

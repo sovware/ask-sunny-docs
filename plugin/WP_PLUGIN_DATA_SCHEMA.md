@@ -7,11 +7,11 @@ The WordPress plugin stores only integration settings, indexing state, and front
 Use one option array to reduce option sprawl:
 
 ```php
-ai_sunny_settings = [
+ask_sunny_settings = [
     'enabled' => true,
     'api_base_url' => 'https://api.example.com',
-    'api_key' => 'ais_live_xxxxx',
-    'api_key_prefix' => 'ais_live',
+    'api_key' => 'ask_live_xxxxx',
+    'api_key_prefix' => 'ask_live',
     'widget_enabled' => true,
     'widget_position' => 'bottom_right',
     'widget_theme' => 'light',
@@ -30,8 +30,8 @@ ai_sunny_settings = [
 Recommended additional options:
 
 ```php
-ai_sunny_schema_version = '1'
-ai_sunny_reindex_state = [
+ask_sunny_schema_version = '1'
+ask_sunny_reindex_state = [
     'running' => false,
     'cursor' => 0,
     'total' => 0,
@@ -53,12 +53,12 @@ Secrets:
 For every indexed source post:
 
 ```text
-_ai_sunny_indexed_at
-_ai_sunny_index_status
-_ai_sunny_index_error
-_ai_sunny_content_hash
-_ai_sunny_backend_content_id
-_ai_sunny_last_payload
+_ask_sunny_indexed_at
+_ask_sunny_index_status
+_ask_sunny_index_error
+_ask_sunny_content_hash
+_ask_sunny_backend_content_id
+_ask_sunny_last_payload
 ```
 
 Status values:
@@ -72,26 +72,26 @@ failed
 skipped
 ```
 
-`_ai_sunny_last_payload` is optional and should be disabled or capped in production to avoid storing large duplicated content.
+`_ask_sunny_last_payload` is optional and should be disabled or capped in production to avoid storing large duplicated content.
 
 ## User Meta
 
 Reserved for future personalization:
 
 ```text
-_ai_sunny_external_user_id
-_ai_sunny_preferred_location
-_ai_sunny_children
-_ai_sunny_interests
-_ai_sunny_budget_preference
-_ai_sunny_travel_distance_miles
-_ai_sunny_favorite_source_ids
+_ask_sunny_external_user_id
+_ask_sunny_preferred_location
+_ask_sunny_children
+_ask_sunny_interests
+_ask_sunny_budget_preference
+_ask_sunny_travel_distance_miles
+_ask_sunny_favorite_source_ids
 ```
 
 For v1, avoid duplicating full conversation history in WordPress. Store only the mapping needed to resume a backend conversation:
 
 ```text
-_ai_sunny_recent_conversation_ids
+_ask_sunny_recent_conversation_ids
 ```
 
 ## Transients
@@ -99,10 +99,10 @@ _ai_sunny_recent_conversation_ids
 Use transients for short-lived operational state:
 
 ```text
-ai_sunny_rate_limit_{session_hash}
-ai_sunny_diagnostics_cache
-ai_sunny_reindex_lock
-ai_sunny_chat_session_{session_hash}
+ask_sunny_rate_limit_{session_hash}
+ask_sunny_diagnostics_cache
+ask_sunny_reindex_lock
+ask_sunny_chat_session_{session_hash}
 ```
 
 Suggested TTLs:
@@ -186,9 +186,9 @@ Reviews:
 The widget may store only non-secret UI/session state:
 
 ```text
-ai_sunny_anonymous_session_id
-ai_sunny_recent_conversation_id
-ai_sunny_widget_open
+ask_sunny_anonymous_session_id
+ask_sunny_recent_conversation_id
+ask_sunny_widget_open
 ```
 
 Do not store backend API keys, OpenAI keys, raw admin settings, or private user profile data in browser storage.

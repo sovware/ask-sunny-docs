@@ -3,7 +3,7 @@
 Namespace:
 
 ```text
-/wp-json/ai-sunny/v1
+/wp-json/ask-sunny/v1
 ```
 
 Admin routes require `manage_options` and a valid REST nonce. Frontend routes accept a REST nonce for logged-in users or an anonymous session token for visitors.
@@ -14,7 +14,7 @@ Use `WP_Error` responses with stable codes:
 
 ```json
 {
-  "code": "ai_sunny_backend_unavailable",
+  "code": "ask_sunny_backend_unavailable",
   "message": "Ask Sunny is unavailable right now.",
   "data": {
     "status": 503
@@ -35,7 +35,7 @@ Response:
   "enabled": true,
   "api_base_url": "https://api.example.com",
   "api_key_configured": true,
-  "api_key_prefix": "ais_live",
+  "api_key_prefix": "ask_live",
   "widget_enabled": true,
   "widget_position": "bottom_right",
   "indexing_enabled": true,
@@ -79,7 +79,7 @@ Response:
 {
   "ok": true,
   "api_key_configured": true,
-  "api_key_prefix": "ais_live"
+  "api_key_prefix": "ask_live"
 }
 ```
 

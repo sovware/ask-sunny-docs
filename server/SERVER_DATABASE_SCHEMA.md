@@ -1,6 +1,6 @@
 # Server Database Schema
 
-The AI Sunny server uses PostgreSQL as the durable system of record for indexed content, conversations, usage, and admin state. WordPress remains the editorial source of truth; backend content tables are a searchable read model.
+The Ask Sunny server uses PostgreSQL as the durable system of record for indexed content, conversations, usage, and admin state. WordPress remains the editorial source of truth; backend content tables are a searchable read model.
 
 Use `BIGSERIAL` or UUIDs consistently during implementation. This document uses UUID primary keys where records may be referenced by browser, mobile, or support tooling.
 

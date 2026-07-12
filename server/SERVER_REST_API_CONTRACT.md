@@ -29,7 +29,7 @@ Returns server health.
 ```json
 {
   "ok": true,
-  "service": "ai-sunny-api",
+  "service": "ask-sunny-api",
   "version": "1.0.0",
   "database": "ok",
   "redis": "disabled"
@@ -56,8 +56,8 @@ Response:
 ```json
 {
   "ok": true,
-  "api_key": "ais_live_xxxxx",
-  "key_prefix": "ais_live",
+  "api_key": "ask_live_xxxxx",
+  "key_prefix": "ask_live",
   "installation": {
     "domain": "palmbeachmamaclub.com",
     "timezone": "America/New_York"

@@ -5,17 +5,21 @@
 Recommended layout:
 
 ```text
-wp-content/plugins/
-  ai-sunny/
-  __server/
-    ai-sunny-api-server/
-  __ai_sunny_docs/
+wordpress-site/
+  wp-content/
+    plugins/
+      ask-sunny/
+
+ask-sunny-api-server/
+ask-sunny-docs/
 ```
+
+The backend server should be checked out and deployed outside the WordPress installation. WordPress communicates with it through the configured backend API URL, not through a filesystem-relative path.
 
 Server setup:
 
 ```sh
-cd __server/ai-sunny-api-server
+cd /path/to/ask-sunny-api-server
 bun install
 cp .env.example .env
 bun run db:migrate
@@ -26,7 +30,7 @@ WordPress setup:
 
 ```text
 1. Activate Directorist.
-2. Activate AI Sunny.
+2. Activate Ask Sunny.
 3. Configure the backend API URL.
 4. Provision the backend API key.
 5. Run diagnostics.
@@ -191,4 +195,3 @@ Recovery sequence:
 - Database backup exists.
 - Error logs are monitored.
 - Privacy deletion/export plan is documented before enabling long-term personalization.
-
