@@ -51,6 +51,11 @@ Future-facing requirements:
 
 ## Document Map
 
+### Planning
+
+- [`planning/SERVER_TASK_PLAN.md`](SERVER_TASK_PLAN.md): standalone backend plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
+- [`planning/PLUGIN_TASK_PLAN.md`](PLUGIN_TASK_PLAN.md): standalone WordPress plugin plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
+
 ### Server
 
 - [`server/SERVER_APP_ARCHITECTURE.md`](server/SERVER_APP_ARCHITECTURE.md): backend runtime, LangGraph flow, OpenAI Responses usage, security, failures, and server flow charts.
