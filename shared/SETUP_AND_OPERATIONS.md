@@ -14,7 +14,7 @@ ask-sunny-api-server/
 ask-sunny-docs/
 ```
 
-The backend server should be checked out and deployed outside the WordPress installation. WordPress communicates with it through the configured backend API URL, not through a filesystem-relative path.
+The backend server should be checked out and deployed outside the WordPress installation. WordPress communicates with it through the configured backend API URL.
 
 Server setup:
 
@@ -51,7 +51,7 @@ HTTPS reverse proxy
 Redis optional
 ```
 
-The Bun process should listen on `127.0.0.1` behind Nginx or Caddy. Do not expose the raw Bun port publicly.
+The Bun process should listen on `127.0.0.1` behind Nginx. Do not expose the raw Bun port publicly.
 
 ## Deployment Flow
 

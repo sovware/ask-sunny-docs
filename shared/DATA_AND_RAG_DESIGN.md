@@ -14,7 +14,7 @@ Future content sources:
 
 - Blog posts.
 - FAQs.
-- Mobile-app user profile data.
+- User profile data.
 - Favorites and saved events.
 - Push notification preferences.
 
