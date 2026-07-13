@@ -93,9 +93,9 @@ Initial reindex:
 
 ```text
 1. Provision backend API key.
-2. Trigger WordPress reindex for business listings.
+2. Trigger WordPress reindex for configured directory listings.
 3. Trigger WordPress reindex for event listings.
-4. Trigger Weekend Picks/newsletter indexing.
+4. Trigger configured editorial/newsletter indexing.
 5. Verify backend content counts.
 6. Run a few admin chat tests.
 ```
@@ -171,7 +171,7 @@ Recovery sequence:
 ### Event Recommendations Have Wrong Dates
 
 - Inspect event `starts_at` and `ends_at` payloads.
-- Verify timezone conversion to `America/New_York`.
+- Verify conversion to the installation's configured timezone.
 - Ensure old/expired events are marked inactive or filtered.
 
 ### Provisioning Fails

@@ -114,7 +114,7 @@ Request:
 
 ```json
 {
-  "source_types": ["business_listing", "event_listing", "weekend_pick"],
+  "source_types": ["directory_listing", "event_listing", "editorial_post"],
   "force": false,
   "batch_size": 25
 }
@@ -161,7 +161,7 @@ Checks WordPress-side and backend health.
     "openai": "configured"
   },
   "indexable_counts": {
-    "business_listing": 250,
+    "directory_listing": 250,
     "event_listing": 80
   }
 }
@@ -179,8 +179,8 @@ Request:
 {
   "conversation_id": "optional-uuid",
   "anonymous_session_id": "browser-session-id",
-  "message": "Where can I find indoor activities if it rains today?",
-  "page_url": "https://palmbeachmamaclub.com"
+  "message": "Which listings are available this week?",
+  "page_url": "https://example.com"
 }
 ```
 
@@ -242,4 +242,3 @@ flowchart TD
   Proxy --> Sanitize[Sanitize response]
   Sanitize --> Render[Render answer and cards]
 ```
-

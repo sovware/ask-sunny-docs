@@ -8,7 +8,7 @@ The plugin is responsible for:
 
 - Detecting Directorist and registering WpMVC providers, controllers, routes, and enqueues.
 - Managing settings and backend provisioning.
-- Extracting business, event, review, newsletter, and promotion content.
+- Extracting configured directory, event, review, editorial, and promotion content.
 - Sending indexing payloads to the backend.
 - Exposing WordPress REST endpoints for the admin SPA and frontend widget.
 - Rendering/enqueuing the chatbot widget on public pages.
@@ -264,13 +264,13 @@ For streaming, WordPress should proxy SSE from the backend when the host support
 
 Register hooks for:
 
-- Directorist business listing create/update.
+- Configured Directorist listing create/update.
 - Directorist event listing create/update.
 - Post status transitions.
 - Post meta changes relevant to Directorist fields.
 - Taxonomy changes for categories, locations, and tags.
 - Review create/update/delete if reviews are part of launch scope.
-- Weekend Picks/newsletter post publish/update.
+- Configured editorial/newsletter post publish/update.
 - Trash/delete/unpublish.
 
 ```mermaid
@@ -296,7 +296,7 @@ Background queue processing can be deferred for v1. Request-level debouncing and
 - Resolve the post type into `source_type`.
 - Extract title, excerpt, content, permalink, status, modified time.
 - Extract Directorist directory type, categories, locations, tags, amenities, custom fields, featured flag, price, contact fields, geolocation, and images where useful.
-- Extract event dates from the Events Directory source.
+- Extract event dates when the source supports them.
 - Extract reviews and ratings if available.
 - Include `raw_payload` for debugging and `normalized_payload` for backend retrieval.
 - Strip HTML and unsafe markup.

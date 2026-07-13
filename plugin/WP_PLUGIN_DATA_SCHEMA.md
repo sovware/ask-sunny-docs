@@ -16,10 +16,10 @@ ask_sunny_settings = [
     'widget_position' => 'bottom_right',
     'widget_theme' => 'light',
     'indexing_enabled' => true,
-    'index_business_listings' => true,
+    'index_directory_listings' => true,
     'index_event_listings' => true,
     'index_reviews' => true,
-    'index_weekend_picks' => true,
+    'index_editorial_posts' => true,
     'request_timeout' => 20,
     'debug_logging' => false,
     'last_successful_sync_at' => '',
@@ -81,7 +81,7 @@ Reserved for future personalization:
 ```text
 _ask_sunny_external_user_id
 _ask_sunny_preferred_location
-_ask_sunny_children
+_ask_sunny_custom_preferences
 _ask_sunny_interests
 _ask_sunny_budget_preference
 _ask_sunny_travel_distance_miles
@@ -114,11 +114,11 @@ Suggested TTLs:
 
 ## Directorist Mapping
 
-Business listings:
+Directory listings:
 
 ```php
 [
-    'source_type' => 'business_listing',
+    'source_type' => 'directory_listing',
     'source_id' => (string) $post_id,
     'source_url' => get_permalink($post_id),
     'title' => $listing_title,
@@ -130,8 +130,7 @@ Business listings:
     'locations' => $location_names,
     'tags' => $tag_names,
     'amenities' => $amenity_values,
-    'age_min' => $age_min,
-    'age_max' => $age_max,
+    'attributes' => $configured_attribute_values,
     'price_level' => $price_level,
     'is_featured' => $featured,
     'is_sponsored' => $sponsored,
@@ -148,16 +147,15 @@ Event listings:
     'starts_at' => $event_start_iso,
     'ends_at' => $event_end_iso,
     'locations' => $location_names,
-    'age_min' => $age_min,
-    'age_max' => $age_max,
+    'attributes' => $configured_attribute_values,
 ]
 ```
 
-Weekend Picks:
+Editorial or newsletter posts:
 
 ```php
 [
-    'source_type' => 'weekend_pick',
+    'source_type' => 'editorial_post',
     'source_id' => (string) $post_id,
     'title' => get_the_title($post_id),
     'body' => wp_strip_all_tags($post->post_content),
@@ -192,4 +190,3 @@ ask_sunny_widget_open
 ```
 
 Do not store backend API keys, OpenAI keys, raw admin settings, or private user profile data in browser storage.
-

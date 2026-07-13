@@ -16,10 +16,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 ```sql
 CREATE TABLE installation_config (
   id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
-  installation_name TEXT NOT NULL DEFAULT 'Palm Beach Mama Club',
+  installation_name TEXT NOT NULL DEFAULT 'WordPress Site',
   primary_domain TEXT NOT NULL,
   wordpress_site_url TEXT NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'America/New_York',
+  timezone TEXT NOT NULL DEFAULT 'UTC',
   settings JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -44,7 +44,7 @@ CREATE TABLE api_keys (
 CREATE TABLE content_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source_type TEXT NOT NULL CHECK (
-    source_type IN ('business_listing', 'event_listing', 'review', 'weekend_pick', 'blog_post', 'faq', 'promotion')
+    source_type IN ('directory_listing', 'event_listing', 'review', 'editorial_post', 'blog_post', 'faq', 'promotion')
   ),
   source_id TEXT NOT NULL,
   source_url TEXT NOT NULL,
@@ -57,8 +57,7 @@ CREATE TABLE content_items (
   locations TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   amenities TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  age_min INTEGER NULL,
-  age_max INTEGER NULL,
+  attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
   price_level TEXT NULL,
   starts_at TIMESTAMPTZ NULL,
   ends_at TIMESTAMPTZ NULL,
@@ -67,7 +66,7 @@ CREATE TABLE content_items (
   is_featured BOOLEAN NOT NULL DEFAULT false,
   is_sponsored BOOLEAN NOT NULL DEFAULT false,
   sponsor_label TEXT NULL,
-  business_member_level TEXT NULL,
+  membership_tier TEXT NULL,
   source_updated_at TIMESTAMPTZ NULL,
   content_hash TEXT NOT NULL,
   raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -83,6 +82,7 @@ CREATE INDEX content_items_event_dates_idx ON content_items (starts_at, ends_at)
 CREATE INDEX content_items_featured_idx ON content_items (is_featured, is_sponsored);
 CREATE INDEX content_items_categories_gin_idx ON content_items USING GIN (categories);
 CREATE INDEX content_items_locations_gin_idx ON content_items USING GIN (locations);
+CREATE INDEX content_items_attributes_gin_idx ON content_items USING GIN (attributes);
 CREATE INDEX content_items_payload_gin_idx ON content_items USING GIN (normalized_payload);
 ```
 
@@ -170,7 +170,7 @@ CREATE TABLE user_profiles (
   home_location TEXT NULL,
   latitude NUMERIC(10, 7) NULL,
   longitude NUMERIC(10, 7) NULL,
-  children JSONB NOT NULL DEFAULT '[]'::jsonb,
+  custom_preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
   interests TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   budget_preference TEXT NULL,
   travel_distance_miles INTEGER NULL,
@@ -264,4 +264,3 @@ CREATE TABLE langgraph_checkpoints (
 - User profile deletion should remove or anonymize `user_profiles`, `user_favorites`, and conversation user references.
 - Usage analytics may be retained longer after removing direct user identifiers.
 - Store email hashes instead of raw email when the backend only needs stable identity matching.
-

@@ -4,10 +4,10 @@
 
 Initial content comes from WordPress and Directorist:
 
-- Business listings from the Directorist Business Directory.
-- Event listings from the Directorist Events Directory.
-- Business reviews.
-- Weekend Picks newsletter posts.
+- Listings from configured Directorist directory types.
+- Event listings where an events directory is enabled.
+- Reviews associated with indexed listings.
+- Configured editorial or newsletter posts.
 - Promotions and sponsored content.
 
 Future content sources:
@@ -15,7 +15,7 @@ Future content sources:
 - Blog posts.
 - FAQs.
 - User profile data.
-- Favorites and saved events.
+- Favorites and saved content.
 - Push notification preferences.
 
 ## Retrieval Model
@@ -24,19 +24,19 @@ Ask Sunny should combine structured filtering and semantic retrieval. Do not rel
 
 Representative questions:
 
-- "I have a 3-year-old and a 7-year-old. What are some fun things to do near Palm Beach this Saturday?"
-- "Where can I find indoor activities if it rains today?"
-- "What's a good restaurant with a playground near Palm Beach?"
+- "What events are happening near downtown this Saturday?"
+- "Which service providers are available this week and match my budget?"
+- "What does the site say about its cancellation policy?"
 
-The retrieval layer should search available directory and event data before the model generates an answer. It should reason over structured fields such as location, date, age suitability, amenities, budget, categories, interests, reviews, custom fields, and featured or sponsored status.
+The retrieval layer should search all relevant enabled sources before the model generates an answer. It should reason over structured fields such as location, date, availability, amenities, budget, categories, reviews, configurable attributes, custom fields, and featured or sponsored status.
 
 Structured filters:
 
 - Date and time for events.
 - Location and distance.
 - Category and directory type.
-- Child age range.
-- Indoor/outdoor suitability.
+- Eligibility or other configured attributes.
+- Physical/virtual format or other site-defined suitability.
 - Amenities.
 - Budget or price level.
 - Featured/sponsored state.
@@ -44,8 +44,8 @@ Structured filters:
 Semantic retrieval:
 
 - User intent and natural-language needs.
-- Synonyms such as "rainy day", "indoor", "toddler friendly", "stroller friendly".
-- Editorial context from Weekend Picks and FAQs.
+- Domain-specific synonyms and equivalent terms configured for the site.
+- Editorial context from articles, newsletter posts, and FAQs.
 - Review text where relevant.
 
 ```mermaid
@@ -72,16 +72,16 @@ Base signals:
 - Exact structured match.
 - Event date match.
 - Location/distance match.
-- Age suitability.
+- Match against configured attributes.
 - Amenity match.
 - Category match.
 - Freshness.
 - Review/rating signal when available.
 
-Business signals:
+Promotion signals:
 
-- Featured business member.
-- Sponsored event or promotion.
+- Featured listing or content item.
+- Sponsored-content status.
 - Active promotion.
 
 Featured and sponsored content can receive a ranking boost only after meeting the user's actual constraints. If a sponsored item appears, response metadata should include `is_sponsored: true`; the UI can display a small label.
@@ -90,10 +90,10 @@ Featured and sponsored content can receive a ranking boost only after meeting th
 
 Ask a follow-up question when a high-quality answer needs missing constraints:
 
-- Child ages.
+- Eligibility or other domain-specific requirements.
 - Preferred location.
 - Date or time window.
-- Indoor/outdoor preference.
+- Category or content-type preference.
 - Budget.
 - Willingness to drive.
 
@@ -109,24 +109,24 @@ Every recommendation should include:
 - Reason it matched.
 - Sponsored/featured flags.
 
-The assistant should avoid inventing details not present in retrieved content. If event dates or business hours are uncertain, say so and link to the source.
+The assistant should avoid inventing details not present in retrieved content. If dates, availability, or operating hours are uncertain, say so and link to the source.
 
 ## Content Normalization
 
 Embedding text should include:
 
 ```text
-Title: Sunny Play Cafe
-Source Type: Business Listing
-Summary: Indoor play space with coffee and toddler area.
-Categories: Indoor Activities, Cafes
-Locations: Palm Beach Gardens
-Amenities: Playground, Changing table
-Age Range: 1-8
+Title: Community Workshop
+Source Type: Event Listing
+Summary: Introductory workshop with advance registration.
+Categories: Workshops, Education
+Locations: Downtown
+Amenities: Wheelchair access, Parking
+Attributes: Experience level = Beginner
 Price Level: $$
 Description: Cleaned listing content.
 Reviews: Short selected review snippets.
-Editorial Notes: Weekend Picks mentions when available.
+Editorial Notes: Related article or newsletter mentions when available.
 ```
 
 Exclude:
@@ -143,12 +143,12 @@ Personalization is future-facing but should be designed now.
 
 Inputs:
 
-- Children ages.
+- Domain-specific and accessibility preferences.
 - Home location or preferred areas.
 - Interests.
 - Budget.
 - Travel distance.
-- Favorite businesses and events.
+- Favorite content items.
 - Previous conversation history.
 
 ```mermaid
@@ -175,13 +175,15 @@ The LangGraph agent should use server-owned tools:
 
 ```json
 {
-  "name": "search_events",
+  "name": "search_content",
   "arguments": {
-    "date": "2026-07-11",
-    "location": "Palm Beach",
-    "age_min": 3,
-    "age_max": 7,
-    "indoor": null,
+    "source_types": ["event_listing"],
+    "query": "beginner workshops",
+    "filters": {
+      "date": "2026-07-11",
+      "location": "Downtown",
+      "attributes": {"experience_level": "beginner"}
+    },
     "limit": 6
   }
 }
@@ -195,10 +197,10 @@ Tool outputs should be compact:
     {
       "source_type": "event_listing",
       "source_id": "2001",
-      "title": "Saturday Story Time",
-      "url": "https://example.com/events/story-time",
-      "starts_at": "2026-07-11T10:00:00-04:00",
-      "reason": "Matches date and age range.",
+      "title": "Community Workshop",
+      "url": "https://example.com/events/community-workshop",
+      "starts_at": "2026-07-11T10:00:00Z",
+      "reason": "Matches the requested date, location, and experience level.",
       "score": 0.91,
       "is_sponsored": false
     }
@@ -216,6 +218,6 @@ Track:
 - Clarifying-question rate.
 - User thumbs-up/down when available.
 - Sponsored impression and click metrics.
-- Event-date correctness.
+- Structured-field correctness, including dates when applicable.
 - Results with missing URLs.
 - Backend latency and OpenAI token usage.

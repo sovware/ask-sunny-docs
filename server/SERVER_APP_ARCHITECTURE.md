@@ -2,12 +2,12 @@
 
 ## Purpose
 
-The Ask Sunny server receives trusted server-side requests from WordPress, and later from a mobile app, then performs conversational RAG over Palm Beach Mama Club content.
+The Ask Sunny server receives trusted server-side requests from WordPress, and later from a mobile app, then performs conversational RAG over the site's indexed content.
 
 The server is responsible for:
 
 - Authenticating WordPress and mobile API calls.
-- Normalizing and indexing Directorist business, event, review, newsletter, and promotion content.
+- Normalizing and indexing configured Directorist and WordPress listing, event, review, editorial, and promotion content.
 - Generating and storing embeddings.
 - Running structured and semantic retrieval.
 - Orchestrating conversational flows with LangGraph.
@@ -59,7 +59,7 @@ REDIS_KEY_PREFIX=ask_sunny
 MAX_CHAT_INPUT_CHARS=4000
 MAX_RETRIEVAL_RESULTS=12
 MAX_TOOL_ITERATIONS=6
-DEFAULT_TIMEZONE=America/New_York
+DEFAULT_TIMEZONE=UTC
 ```
 
 Model names are deployment configuration, not hardcoded constants. Before production launch, verify the current OpenAI recommended model and Responses API behavior from official OpenAI docs.
@@ -87,12 +87,12 @@ LangGraph owns the orchestration of a chat turn. Each graph run receives a durab
 Recommended graph nodes:
 
 - `load_context`: load conversation, recent messages, user profile, favorites, and site settings.
-- `classify_intent`: classify whether the user needs recommendations, event search, business search, clarification, or general help.
-- `extract_constraints`: identify location, date, ages, budget, indoor/outdoor preference, category, amenities, and accessibility needs.
+- `classify_intent`: classify whether the user needs recommendations, source search, clarification, or general help.
+- `extract_constraints`: identify relevant dates, locations, categories, budget, amenities, accessibility needs, and configured custom attributes.
 - `decide_tools`: choose retrieval tools and whether a clarifying question is required.
-- `retrieve_businesses`: search business directory content.
-- `retrieve_events`: search event content by date and family suitability.
-- `retrieve_editorial`: search Weekend Picks, FAQs, blog posts, promotions, and sponsored content.
+- `retrieve_listings`: search configured directory content.
+- `retrieve_events`: search event content by date and other configured constraints.
+- `retrieve_editorial`: search editorial posts, newsletters, FAQs, blog posts, promotions, and sponsored content.
 - `rank_and_filter`: merge semantic, structured, featured, sponsored, and personalization signals.
 - `generate_answer`: call OpenAI Responses API with tool outputs and citation candidates.
 - `persist_turn`: write messages, tool calls, citations, usage, and graph status.
@@ -105,10 +105,10 @@ flowchart TD
   Extract --> Clarify{Need clarification?}
   Clarify -- yes --> GenerateClarify[Generate follow-up question]
   Clarify -- no --> ToolPlan[Plan retrieval tools]
-  ToolPlan --> Business[Business retrieval]
+  ToolPlan --> Listings[Listing retrieval]
   ToolPlan --> Events[Event retrieval]
   ToolPlan --> Editorial[Editorial retrieval]
-  Business --> Rank[Rank and filter]
+  Listings --> Rank[Rank and filter]
   Events --> Rank
   Editorial --> Rank
   Rank --> Generate[Responses API answer generation]
@@ -132,9 +132,9 @@ The server should provide custom tools to the model through the application laye
 
 Recommended tools:
 
-- `search_businesses`
+- `search_listings`
 - `search_events`
-- `search_weekend_picks`
+- `search_editorial`
 - `get_listing_detail`
 - `get_user_preferences`
 - `save_user_preference`
@@ -220,6 +220,6 @@ flowchart TD
   MobileAuth --> Server[Ask Sunny backend]
   Server --> Profile[User profile and favorites]
   Server --> Graph[LangGraph chat flow]
-  Graph --> Content[Business/event retrieval]
+  Graph --> Content[Indexed-content retrieval]
   Graph --> Response[Personalized answer]
 ```

@@ -1,6 +1,6 @@
 # Ask Sunny Architecture Documentation
 
-Ask Sunny is a single-tenant AI concierge for Palm Beach Mama Club. It uses WordPress and Directorist as the source of truth for local business and event content, and a separate backend service for conversational RAG, retrieval, persistence, and OpenAI integration.
+Ask Sunny is a single-tenant, content-grounded AI concierge for a WordPress website. It uses WordPress and Directorist as the source of truth for site content and a separate backend service for conversational RAG, retrieval, persistence, and OpenAI integration.
 
 This documentation follows these requirements and architectural patterns:
 
@@ -13,20 +13,22 @@ This documentation follows these requirements and architectural patterns:
 
 ## Product Requirements
 
-Ask Sunny should be an AI concierge, not a generic website-context chatbot. It must search structured Palm Beach Mama Club data before answering, reason over the results, and return direct links to relevant businesses, events, and editorial pages.
+Ask Sunny should be a content-grounded AI concierge, not a chatbot that answers from unverified general context. It must search the site's configured structured and editorial sources before answering, reason over the results, and return direct links to relevant source pages.
+
+The content types, taxonomies, attributes, and examples in these documents are illustrative and must be configurable for each installation rather than tied to a particular organization, audience, or location.
 
 Primary user scenarios:
 
-- A mom asks for things to do near Palm Beach for children of specific ages on a specific date.
-- A visitor asks for indoor activities when it rains.
-- A parent asks for a restaurant or business with a specific amenity, such as a playground.
-- A user continues the conversation with follow-up constraints such as budget, travel distance, location, indoor/outdoor preference, or child ages.
+- A visitor asks for events in a particular location and date range.
+- A user asks for a directory listing that matches specific categories, attributes, or amenities.
+- A visitor asks a question answered by an editorial article, newsletter post, or FAQ.
+- A user continues the conversation with constraints such as budget, distance, location, availability, accessibility, or other site-defined criteria.
 
 Launch requirements:
 
-- Retrieve from the Directorist Business Directory and Events Directory.
+- Retrieve from configured Directorist directory types and other enabled WordPress sources.
 - Search listings, categories, locations, event dates, amenities, reviews, and custom fields before generating recommendations.
-- Include Weekend Picks content published on the website, even if the email edition is sent through Beehiiv.
+- Include configured editorial or newsletter content published on the website.
 - Return direct website links for citations and recommendation cards.
 - Preserve conversation context across follow-up questions.
 - Power the website first while keeping the backend reusable for a future mobile app.
@@ -36,11 +38,11 @@ Future-facing requirements:
 
 - Add blog posts, FAQs, promotions, and sponsored content as retrievable sources.
 - Support user accounts across website and mobile app.
-- Let users save favorite businesses and events.
-- Store preferences such as children ages, location, interests, budget, and preferred travel distance.
+- Let users save favorite content items.
+- Store preferences such as location, interests, budget, accessibility needs, preferred distance, and other site-defined criteria.
 - Use preferences, favorites, and conversation history for personalized recommendations.
-- Support push-notification use cases for nearby events and matching listings.
-- Prioritize featured business members and sponsored events only when they are relevant to the user's request.
+- Support push notifications for new or time-sensitive matching content.
+- Prioritize featured or sponsored content only when it is relevant to the user's request.
 
 ## Document Map
 
@@ -77,7 +79,7 @@ flowchart LR
   Server --> OpenAI[OpenAI Responses API + embeddings]
 ```
 
-WordPress remains responsible for collecting site content, rendering the website widget, protecting browser-facing REST endpoints, and sending server-side requests to the Ask Sunny backend. The launch content sources are the Directorist Business Directory, Directorist Events Directory, business reviews, Weekend Picks, and sponsored/promotional content. The backend owns chat orchestration, retrieval, embeddings, conversation persistence, ranking, citations, analytics, and future mobile-app access.
+WordPress remains responsible for collecting site content, rendering the website widget, protecting browser-facing REST endpoints, and sending server-side requests to the Ask Sunny backend. Initial sources may include configured Directorist listings, events, reviews, editorial or newsletter posts, and sponsored or promotional content. The backend owns chat orchestration, retrieval, embeddings, conversation persistence, ranking, citations, analytics, and future mobile-app access.
 
 ## Core Decisions
 
@@ -86,4 +88,4 @@ WordPress remains responsible for collecting site content, rendering the website
 - The backend uses LangGraph for orchestration and short-term workflow state. Application tables store durable conversation, message, tool-call, profile, and usage records.
 - The backend uses OpenAI Responses API for agentic model calls, tool use, streaming, and multi-turn reasoning. Implementation should verify the current recommended model before launch.
 - WordPress and Directorist remain the content source of truth for launch. Backend content tables are an indexed search/read model.
-- Featured businesses and sponsored events can influence ranking only when relevant to the user's request.
+- Featured or sponsored content can influence ranking only when relevant to the user's request.

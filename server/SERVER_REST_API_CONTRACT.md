@@ -45,9 +45,9 @@ Request:
 ```json
 {
   "provisioning_key": "long-shared-secret",
-  "domain": "palmbeachmamaclub.com",
-  "wordpress_site_url": "https://palmbeachmamaclub.com",
-  "installation_name": "Palm Beach Mama Club"
+  "domain": "example.com",
+  "wordpress_site_url": "https://example.com",
+  "installation_name": "Example WordPress Site"
 }
 ```
 
@@ -59,8 +59,8 @@ Response:
   "api_key": "ask_live_xxxxx",
   "key_prefix": "ask_live",
   "installation": {
-    "domain": "palmbeachmamaclub.com",
-    "timezone": "America/New_York"
+    "domain": "example.com",
+    "timezone": "UTC"
   }
 }
 ```
@@ -77,19 +77,18 @@ Request:
 
 ```json
 {
-  "source_type": "business_listing",
+  "source_type": "directory_listing",
   "source_id": "1514",
-  "source_url": "https://palmbeachmamaclub.com/listing/example",
-  "title": "Sunny Play Cafe",
-  "summary": "Indoor play space with coffee and toddler area.",
+  "source_url": "https://example.com/directory/example-provider",
+  "title": "Example Service Provider",
+  "summary": "A short description of the services offered.",
   "body": "Full cleaned content.",
   "status": "active",
-  "categories": ["Indoor Activities"],
-  "locations": ["Palm Beach Gardens"],
-  "tags": ["toddlers", "rainy day"],
-  "amenities": ["playground", "changing table"],
-  "age_min": 1,
-  "age_max": 8,
+  "categories": ["Professional Services"],
+  "locations": ["Downtown"],
+  "tags": ["appointment", "accessible"],
+  "amenities": ["wheelchair access", "parking"],
+  "attributes": {"availability": "weekdays"},
   "price_level": "$$",
   "starts_at": null,
   "ends_at": null,
@@ -122,8 +121,8 @@ Request:
     {
       "source_type": "event_listing",
       "source_id": "2001",
-      "source_url": "https://example.com/events/story-time",
-      "title": "Saturday Story Time",
+      "source_url": "https://example.com/events/community-workshop",
+      "title": "Community Workshop",
       "status": "active"
     }
   ]
@@ -150,7 +149,7 @@ Request:
 
 ```json
 {
-  "source_type": "business_listing",
+  "source_type": "directory_listing",
   "source_id": "1514"
 }
 ```
@@ -177,10 +176,10 @@ Request:
   "conversation_id": "optional-uuid",
   "anonymous_session_id": "browser-session-id",
   "external_user_id": "optional-wordpress-user-id",
-  "message": "I have a 3-year-old and a 7-year-old. What can we do this Saturday?",
+  "message": "What workshops are available this Saturday?",
   "context": {
-    "timezone": "America/New_York",
-    "page_url": "https://palmbeachmamaclub.com"
+    "timezone": "UTC",
+    "page_url": "https://example.com"
   }
 }
 ```
@@ -196,17 +195,17 @@ Response:
     {
       "source_type": "event_listing",
       "source_id": "2001",
-      "title": "Saturday Story Time",
-      "url": "https://example.com/events/story-time",
-      "reason": "Good fit for both ages and happens this Saturday.",
+      "title": "Community Workshop",
+      "url": "https://example.com/events/community-workshop",
+      "reason": "Matches the requested date and location.",
       "is_sponsored": false,
       "is_featured": false
     }
   ],
   "citations": [
     {
-      "title": "Saturday Story Time",
-      "url": "https://example.com/events/story-time",
+      "title": "Community Workshop",
+      "url": "https://example.com/events/community-workshop",
       "source_type": "event_listing"
     }
   ],
@@ -230,7 +229,7 @@ event: delta
 data: {"text":"Here are"}
 
 event: recommendation
-data: {"source_id":"2001","title":"Saturday Story Time","url":"https://example.com/events/story-time"}
+data: {"source_id":"2001","title":"Community Workshop","url":"https://example.com/events/community-workshop"}
 
 event: done
 data: {"message_id":"uuid","citations":[...]}
@@ -279,7 +278,7 @@ Request:
 
 ```json
 {
-  "source_types": ["business_listing", "event_listing"],
+  "source_types": ["directory_listing", "event_listing"],
   "force": false
 }
 ```
@@ -327,7 +326,7 @@ Returns operational state.
   "redis": "disabled",
   "openai": "configured",
   "content_counts": {
-    "business_listing": 250,
+    "directory_listing": 250,
     "event_listing": 80
   },
   "last_indexed_at": "2026-07-06T12:00:00Z"
@@ -342,4 +341,3 @@ Returns operational state.
 - Event records should include `starts_at` where available.
 - Deleted content requires only `source_type` and `source_id`.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
-
