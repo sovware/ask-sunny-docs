@@ -2,17 +2,24 @@
 
 ## Source Content
 
-Initial content comes from WordPress and Directorist:
+The primary content source is Directorist listings. Directorist multi-directory support allows one listing post type to be classified into multiple directory types. Each directory type is a distinct data source for retrieval context. For example, an Event Directory contains listings with event-related fields; it is not a separate `event_listing` source type.
 
-- Listings from configured Directorist directory types.
-- Event listings where an events directory is enabled.
-- Reviews associated with indexed listings.
-- Configured editorial or newsletter posts.
-- Promotions and sponsored content.
+Source rules:
 
-Future content sources:
+- Every discovered Directorist directory type is registered as a mandatory data source and all eligible published listings in it are indexed. The administrator cannot disable Directorist listing sources.
+- A listing belongs to the data source identified by its Directorist directory type, such as `directorist:events` or `directorist:businesses`.
+- Each directory type also has a separate, mandatory review data source, such as `directorist:events:reviews`. Approved reviews are indexed as `directorist_review` records and reference their parent listing; they are not folded into the listing embedding.
+- A review inherits the parent listing's directory type, categories, locations, source URL, and relevant context metadata so retrieval can filter reviews by the same context as listings.
+- Event dates, promotions, and other Directorist features remain fields or related context on a listing; they do not create parallel listing source types.
+- The administrator may enable or disable eligible non-Directorist WordPress post types, including `post`, `page`, and public custom post types.
+- Each enabled WordPress post type becomes a data source, such as `wordpress:post` or `wordpress:page`.
+- Disabling an optional source preserves previously indexed backend records but removes its key from the backend's persisted `allowed_data_source_keys`. Only an explicit admin delete action removes indexed records.
+- Each data source carries context metadata used by RAG, such as label, description, content kind, audience, and installation-specific key/value attributes.
+- Optional WordPress sources may define inclusion filters. At minimum, support taxonomy-term filters, such as indexing only posts in selected categories. A controlled allowlist may add safe post-meta filters; arbitrary SQL or callbacks are not accepted as configuration.
+- Source kinds use separate backend tables and embeddings: Directorist listings, Directorist reviews, and optional WordPress content are not stored in one generic content table. Retrieval queries each allowed kind independently and merges scored candidates afterward.
 
-- Blog posts.
+Future content can be added by enabling the relevant post type rather than adding hardcoded content-specific branches:
+
 - FAQs.
 - User profile data.
 - Favorites and saved content.
@@ -28,25 +35,26 @@ Representative questions:
 - "Which service providers are available this week and match my budget?"
 - "What does the site say about its cancellation policy?"
 
-The retrieval layer should search all relevant enabled sources before the model generates an answer. It should reason over structured fields such as location, date, availability, amenities, budget, categories, reviews, configurable attributes, custom fields, and featured or sponsored status.
+The retrieval layer must first load the backend's persisted `allowed_data_source_keys`, then select relevant keys from that allowlist using source context metadata. It must never expand beyond the stored allowlist. Within the allowed sources, it should reason over structured fields such as location, date, availability, amenities, budget, categories, reviews, core preset columns, generic listing metadata, and featured state.
 
 Structured filters:
 
-- Date and time for events.
+- Data source key and context metadata.
+- Date and time for listings from an Event Directory.
 - Location and distance.
 - Category and directory type.
-- Eligibility or other configured attributes.
+- Eligibility or other configured metadata fields.
 - Physical/virtual format or other site-defined suitability.
 - Amenities.
 - Budget or price level.
-- Featured/sponsored state.
+- Featured state and configured promotion metadata when present.
 
 Semantic retrieval:
 
 - User intent and natural-language needs.
 - Domain-specific synonyms and equivalent terms configured for the site.
 - Editorial context from articles, newsletter posts, and FAQs.
-- Review text where relevant.
+- Review text retrieved from the selected Directorist review data source.
 
 ```mermaid
 flowchart TD
@@ -70,21 +78,17 @@ Base signals:
 
 - Semantic similarity.
 - Exact structured match.
-- Event date match.
+- Event-date match when the listing's directory type provides event fields.
 - Location/distance match.
-- Match against configured attributes.
+- Match against configured listing metadata.
 - Amenity match.
 - Category match.
 - Freshness.
 - Review/rating signal when available.
 
-Promotion signals:
+Promotion signals must be metadata-driven rather than fixed content-table columns. Featured content may receive a ranking boost only after meeting the user's actual constraints. Extension-provided promotion fields, if present, live in `listing_metadata` and require an explicit ranking configuration before use.
 
-- Featured listing or content item.
-- Sponsored-content status.
-- Active promotion.
-
-Featured and sponsored content can receive a ranking boost only after meeting the user's actual constraints. If a sponsored item appears, response metadata should include `is_sponsored: true`; the UI can display a small label.
+Review records may contribute semantic evidence and aggregate rating signals to their parent listing through `parent_data_source_key` and `parent_source_id`. A review is not returned as a listing recommendation card, but it may be cited directly when its text supports the answer.
 
 ## Clarifying Questions
 
@@ -105,9 +109,9 @@ Every recommendation should include:
 
 - Title.
 - Direct URL.
-- Source type.
+- Data source label and direct source key.
 - Reason it matched.
-- Sponsored/featured flags.
+- Featured state and any configured disclosure metadata.
 
 The assistant should avoid inventing details not present in retrieved content. If dates, availability, or operating hours are uncertain, say so and link to the source.
 
@@ -117,16 +121,42 @@ Embedding text should include:
 
 ```text
 Title: Community Workshop
-Source Type: Event Listing
+Source Kind: Directorist Listing
+Data Source: Event Directory (directorist:events)
+Source Context: content_kind = event
 Summary: Introductory workshop with advance registration.
 Categories: Workshops, Education
 Locations: Downtown
 Amenities: Wheelchair access, Parking
-Attributes: Experience level = Beginner
-Price Level: $$
+Price: USD 25.00
+Phone: +1-555-0100
+Website: https://workshop.example.com
+Address: 100 Main Street, Downtown
 Description: Cleaned listing content.
-Reviews: Short selected review snippets.
+Listing Metadata:
+- Experience Level (select): Beginner
+- Event Start (directorist-events, datetime): 2026-07-11T10:00:00Z
 Editorial Notes: Related article or newsletter mentions when available.
+```
+
+Embedding generation must serialize every non-empty, public, content-bearing database column and every value in the flat `listing_metadata` map. Operational values such as database IDs, hashes, timestamps used only for synchronization, raw debug payloads, and private/admin-only fields are excluded. Sort metadata by stable field key so identical content produces identical embedding text and hashes.
+
+The same rule applies independently to the other source tables: review embeddings include public `directorist_reviews` columns plus `review_metadata`, and WordPress-content embeddings include public `wordpress_content` columns plus `taxonomies` and `post_metadata`. Embedding text and hashes are computed within the source-kind repository and stored in that kind's embedding table.
+
+For each metadata entry, include its label, stable key, field type, provider when present, and sanitized value. Flatten arrays in their saved order, format dates/times consistently, and include file-upload URLs rather than file contents. Any change to a column or included metadata value must change the content hash and trigger re-embedding.
+
+Review embedding text should be independent:
+
+```text
+Review For: Community Workshop
+Source Kind: Directorist Review
+Data Source: Event Directory Reviews (directorist:events:reviews)
+Parent Listing ID: 2001
+Rating: 5
+Directory Type: Event Directory
+Categories: Workshops, Education
+Locations: Downtown
+Review: Cleaned approved review text.
 ```
 
 Exclude:
@@ -167,7 +197,7 @@ Rules:
 - Anonymous users can receive session-level continuity.
 - Logged-in users can receive cross-device personalization.
 - Users must have a path to delete or reset personalization data.
-- Do not personalize sponsored content beyond relevance; relevance remains the first requirement.
+- Relevance remains the first requirement for any configured promotional metadata.
 
 ## Tool Design
 
@@ -177,12 +207,12 @@ The LangGraph agent should use server-owned tools:
 {
   "name": "search_content",
   "arguments": {
-    "source_types": ["event_listing"],
+    "data_source_keys": ["directorist:events"],
     "query": "beginner workshops",
     "filters": {
       "date": "2026-07-11",
       "location": "Downtown",
-      "attributes": {"experience_level": "beginner"}
+      "metadata_filters": {"experience_level": "beginner"}
     },
     "limit": 6
   }
@@ -195,18 +225,21 @@ Tool outputs should be compact:
 {
   "results": [
     {
-      "source_type": "event_listing",
+      "source_kind": "directorist_listing",
+      "data_source_key": "directorist:events",
+      "data_source_label": "Event Directory",
       "source_id": "2001",
       "title": "Community Workshop",
       "url": "https://example.com/events/community-workshop",
-      "starts_at": "2026-07-11T10:00:00Z",
+      "matched_metadata": {"event_start": "2026-07-11T10:00:00Z"},
       "reason": "Matches the requested date, location, and experience level.",
-      "score": 0.91,
-      "is_sponsored": false
+      "score": 0.91
     }
   ]
 }
 ```
+
+The server must intersect every model-selected `data_source_keys` value with the persisted `allowed_data_source_keys`. The model and chat caller cannot override or expand the allowlist through tool arguments or request fields. An empty or missing backend allowlist fails closed and yields no RAG candidates.
 
 ## Evaluation
 
@@ -217,7 +250,8 @@ Track:
 - Zero-result rate.
 - Clarifying-question rate.
 - User thumbs-up/down when available.
-- Sponsored impression and click metrics.
+- Configured promotion/disclosure metrics when applicable.
 - Structured-field correctness, including dates when applicable.
+- Data-source selection and source-context filter correctness.
 - Results with missing URLs.
 - Backend latency and OpenAI token usage.

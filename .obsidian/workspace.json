@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "server/SERVER_APP_ARCHITECTURE.md",
+                "file": "plugin/WP_PLUGIN_DATA_SCHEMA.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "SERVER_APP_ARCHITECTURE"
+              "title": "WP_PLUGIN_DATA_SCHEMA"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "server/SERVER_APP_ARCHITECTURE.md",
+                "file": "plugin/WP_PLUGIN_DATA_SCHEMA.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for SERVER_APP_ARCHITECTURE"
+              "title": "Backlinks for WP_PLUGIN_DATA_SCHEMA"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "server/SERVER_APP_ARCHITECTURE.md",
+                "file": "plugin/WP_PLUGIN_DATA_SCHEMA.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from SERVER_APP_ARCHITECTURE"
+              "title": "Outgoing links from WP_PLUGIN_DATA_SCHEMA"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "server/SERVER_APP_ARCHITECTURE.md",
+                "file": "plugin/WP_PLUGIN_DATA_SCHEMA.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of SERVER_APP_ARCHITECTURE"
+              "title": "Outline of WP_PLUGIN_DATA_SCHEMA"
             }
           }
         ]
@@ -185,8 +185,12 @@
   },
   "active": "b214d09e537ef6e4",
   "lastOpenFiles": [
+    "plugin/WP_PLUGIN_ARCHITECTURE.md",
     "shared/SETUP_AND_OPERATIONS.md",
     "shared/DATA_AND_RAG_DESIGN.md",
+    "server/SERVER_APP_ARCHITECTURE.md",
+    "server/SERVER_DATABASE_SCHEMA.md",
+    "server/SERVER_REST_API_CONTRACT.md",
     "README.md",
     "Untitled.base"
   ]

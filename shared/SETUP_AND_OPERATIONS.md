@@ -33,9 +33,10 @@ WordPress setup:
 2. Activate Ask Sunny.
 3. Configure the backend API URL.
 4. Provision the backend API key.
-5. Run diagnostics.
-6. Trigger initial reindex.
-7. Enable the frontend widget.
+5. Review the Data Sources submenu. Directorist listing and review sources are already enabled; configure any optional WordPress post-type sources and filters.
+6. Run diagnostics.
+7. Trigger initial reindex.
+8. Enable the frontend widget.
 ```
 
 ## Infrastructure
@@ -93,11 +94,13 @@ Initial reindex:
 
 ```text
 1. Provision backend API key.
-2. Trigger WordPress reindex for configured directory listings.
-3. Trigger WordPress reindex for event listings.
-4. Trigger configured editorial/newsletter indexing.
-5. Verify backend content counts.
-6. Run a few admin chat tests.
+2. Refresh the WordPress-local registry and synchronize the complete allowed data-source list to the backend.
+3. Trigger WordPress reindex for every Directorist directory-type listing source, including any Event Directory.
+4. Trigger review indexing for each Directorist directory type; only approved reviews are sent.
+5. Trigger indexing for each enabled optional WordPress post-type source after applying its configured filters locally.
+6. Verify per-source and per-item statuses in the Data Sources submenu.
+7. Verify backend content counts by `data_source_key`.
+8. Run a few admin chat tests.
 ```
 
 Reindex after changes:
@@ -105,7 +108,12 @@ Reindex after changes:
 - New embedding model: force full reindex.
 - New normalization rules: force full reindex or versioned reindex.
 - Single listing update: index one item.
+- Review approval/content/rating change: reindex the review record; unapproval, spam, trash, or deletion tombstones it.
 - Unpublish/delete: call backend delete route.
+- Optional source disabled: preserve indexed records, stop automatic indexing, and atomically remove the key from the backend's persisted `allowed_data_source_keys`.
+- Optional source enabled: atomically restore the key to the backend allowlist and reconcile eligible items.
+- Optional source filter change: reconcile the indexed item set against the new filter.
+- Admin **Delete indexed data**: tombstone one selected item; **Delete all indexed data** tombstones every item for the selected source without changing its enabled state.
 
 ## Monitoring
 
@@ -113,11 +121,11 @@ Track:
 
 - `/health` status.
 - Chat request count and latency.
-- Streaming failure count.
+- Complete chat response failures and timeout count.
 - OpenAI API errors and rate limits.
 - Token usage.
 - Indexing success/failure count.
-- Content counts by source type.
+- Content counts by data source key and source kind.
 - Retrieval result count.
 - Database connection pool usage.
 - Slow queries.
@@ -163,14 +171,15 @@ Recovery sequence:
 ### Results Are Irrelevant
 
 - Check whether content is indexed.
-- Inspect normalized payload for missing categories, locations, event dates, or custom fields.
+- Inspect normalized payload for an incorrect `data_source_key`, missing source context, missing core preset columns, or incomplete generic `listing_metadata`.
 - Verify embeddings exist.
 - Run admin diagnostics and sample retrieval tests.
-- Review ranking boosts for featured/sponsored content.
+- Review ranking boosts for featured content or explicitly configured promotion metadata.
 
-### Event Recommendations Have Wrong Dates
+### Event Directory Recommendations Have Wrong Dates
 
-- Inspect event `starts_at` and `ends_at` payloads.
+- Confirm the listing is classified under the correct Directorist Event Directory data source.
+- Inspect the event extension values under `listing_metadata`.
 - Verify conversion to the installation's configured timezone.
 - Ensure old/expired events are marked inactive or filtered.
 
@@ -186,12 +195,18 @@ Recovery sequence:
 - Backend `/health` passes.
 - WordPress diagnostics pass.
 - Initial reindex completed.
+- All Directorist directory types appear with required listing and review sources that cannot be disabled.
+- Optional WordPress sources honor their taxonomy/meta filters.
+- Disabled optional sources remain stored but never appear in RAG results.
+- WordPress and backend allowed-source versions match; an empty or missing backend allowlist fails closed.
+- Per-item and per-source delete actions require explicit admin confirmation.
+- Per-item index status and failures are visible in the Data Sources submenu.
 - Chat works for anonymous visitors.
 - Chat works for logged-in users.
-- Streaming fallback works.
+- Chat returns one complete JSON response with the answer, citations, and recommendations.
 - OpenAI key is absent from browser source.
 - Backend API key is absent from browser source.
-- Sponsored/featured recommendations are labeled in structured response metadata.
+- Featured recommendations and any configured promotion disclosures are labeled in structured response metadata.
 - Database backup exists.
 - Error logs are monitored.
 - Privacy deletion/export plan is documented before enabling long-term personalization.

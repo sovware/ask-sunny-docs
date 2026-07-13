@@ -7,11 +7,11 @@ The Ask Sunny server receives trusted server-side requests from WordPress, and l
 The server is responsible for:
 
 - Authenticating WordPress and mobile API calls.
-- Normalizing and indexing configured Directorist and WordPress listing, event, review, editorial, and promotion content.
+- Indexing Directorist listings, separate approved listing reviews, and WordPress post-type content selected and sent by the WordPress plugin.
 - Generating and storing embeddings.
 - Running structured and semantic retrieval.
 - Orchestrating conversational flows with LangGraph.
-- Calling OpenAI Responses API for model reasoning, tool use, and streaming.
+- Calling OpenAI Responses API for model reasoning, tool use, and complete-response generation.
 - Persisting conversations, messages, citations, tool calls, user profiles, favorites, and usage events.
 - Returning grounded answers with direct links.
 
@@ -62,6 +62,8 @@ MAX_TOOL_ITERATIONS=6
 DEFAULT_TIMEZONE=UTC
 ```
 
+Because chat is returned as one complete response, the WordPress proxy timeout must be greater than `OPENAI_REQUEST_TIMEOUT_MS`; a 60-second WordPress timeout provides application overhead around the 45-second model timeout.
+
 Model names are deployment configuration, not hardcoded constants. Before production launch, verify the current OpenAI recommended model and Responses API behavior from official OpenAI docs.
 
 ## High-Level Server Flow
@@ -77,7 +79,7 @@ flowchart TD
   Service --> DB[(PostgreSQL)]
   Service --> Cache[(Optional Redis)]
   Service --> OpenAI[OpenAI API]
-  Service --> Response[JSON or SSE response]
+  Service --> Response[Complete JSON response]
 ```
 
 ## LangGraph Chat Architecture
@@ -86,14 +88,13 @@ LangGraph owns the orchestration of a chat turn. Each graph run receives a durab
 
 Recommended graph nodes:
 
-- `load_context`: load conversation, recent messages, user profile, favorites, and site settings.
+- `load_context`: load conversation, recent messages, user profile, favorites, and persisted `allowed_data_source_keys` from backend installation configuration.
 - `classify_intent`: classify whether the user needs recommendations, source search, clarification, or general help.
-- `extract_constraints`: identify relevant dates, locations, categories, budget, amenities, accessibility needs, and configured custom attributes.
+- `extract_constraints`: identify relevant dates, locations, categories, budget, amenities, accessibility needs, core preset fields, and generic listing metadata.
 - `decide_tools`: choose retrieval tools and whether a clarifying question is required.
-- `retrieve_listings`: search configured directory content.
-- `retrieve_events`: search event content by date and other configured constraints.
-- `retrieve_editorial`: search editorial posts, newsletters, FAQs, blog posts, promotions, and sponsored content.
-- `rank_and_filter`: merge semantic, structured, featured, sponsored, and personalization signals.
+- `select_data_sources`: choose relevant concrete sources from labels, descriptions, and context metadata.
+- `retrieve_content`: dispatch searches to the listing, review, and WordPress-content repositories represented by selected keys, apply kind-specific structured constraints, then merge their scored results. Selected keys must be a subset of the backend's stored `allowed_data_source_keys`. Event questions select an Event Directory listing source and apply its metadata fields; review or rating questions may also select that directory's companion review source.
+- `rank_and_filter`: merge semantic, structured, featured, configured promotion-metadata, and personalization signals.
 - `generate_answer`: call OpenAI Responses API with tool outputs and citation candidates.
 - `persist_turn`: write messages, tool calls, citations, usage, and graph status.
 
@@ -104,17 +105,13 @@ flowchart TD
   Classify --> Extract[Extract constraints]
   Extract --> Clarify{Need clarification?}
   Clarify -- yes --> GenerateClarify[Generate follow-up question]
-  Clarify -- no --> ToolPlan[Plan retrieval tools]
-  ToolPlan --> Listings[Listing retrieval]
-  ToolPlan --> Events[Event retrieval]
-  ToolPlan --> Editorial[Editorial retrieval]
-  Listings --> Rank[Rank and filter]
-  Events --> Rank
-  Editorial --> Rank
+  Clarify -- no --> SourcePlan[Select data sources from context metadata]
+  SourcePlan --> Retrieve[Retrieve within selected data source keys]
+  Retrieve --> Rank[Rank and filter]
   Rank --> Generate[Responses API answer generation]
   GenerateClarify --> Persist[Persist turn]
   Generate --> Persist
-  Persist --> End([JSON or SSE output])
+  Persist --> End([Complete JSON output])
 ```
 
 LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in [`SERVER_DATABASE_SCHEMA.md`](SERVER_DATABASE_SCHEMA.md); checkpoints are for graph recovery and short-term orchestration, not the only audit log.
@@ -125,17 +122,16 @@ Use Responses API for:
 
 - Agentic tool calls within a chat turn.
 - Structured final answer generation.
-- Streaming text deltas for the widget.
+- Complete structured response generation for the widget.
 - Multi-turn continuity through server-side conversation context.
 
 The server should provide custom tools to the model through the application layer, not expose database credentials or raw SQL. Tool implementations run in server code and return compact result objects.
 
 Recommended tools:
 
-- `search_listings`
-- `search_events`
-- `search_editorial`
-- `get_listing_detail`
+- `list_data_sources`
+- `search_content`
+- `get_content_detail`
 - `get_user_preferences`
 - `save_user_preference`
 
@@ -149,18 +145,24 @@ The final answer should include:
 
 ## Indexing Architecture
 
-WordPress sends content payloads whenever Directorist content changes or an admin triggers reindexing. The backend normalizes each payload into a canonical content record, computes a content hash, skips unchanged records, generates embeddings when needed, and stores structured fields for filtering.
+WordPress owns the source registry, enable/disable controls, and indexing filters. It sends only eligible listings, reviews, and posts. The backend dispatches by `source_kind` into separate persistence boundaries: Directorist listings, Directorist reviews, and WordPress content. Each kind has its own table, normalizer, repository, and embedding table. Listing payloads separate Directorist core preset values into canonical columns and put every non-core value into one flat `listing_metadata` map. Review records resolve `parent_data_source_key` and `parent_source_id` to a foreign key in `directorist_listings` so ranking can aggregate review evidence.
+
+WordPress owns the source settings UI and computes the complete allowlist. After provisioning and whenever source enablement changes, WordPress atomically synchronizes `allowed_data_source_keys` to backend installation configuration. The backend stores and enforces that list across SQL filtering, vector retrieval, detail lookup, and model tools. Disabling a source updates the allowlist without deleting indexed content. Deletion occurs only when WordPress sends an explicit per-item deletion or bulk delete-by-data-source request initiated by an administrator or maintenance workflow.
+
+If the allowlist is empty or unavailable, retrieval fails closed and returns no candidates. Chat input cannot override the stored list.
 
 ```mermaid
 flowchart TD
   WP[WordPress indexing request] --> Auth[Validate installation API key]
-  Auth --> Validate[Validate payload]
-  Validate --> Normalize[Normalize source fields]
+  Auth --> Validate[Validate content and source metadata]
+  Validate --> Registry[Upsert retrieval-only source metadata]
+  Registry --> Dispatch[Dispatch by source kind and storage table]
+  Dispatch --> Normalize[Run source-specific normalizer]
   Normalize --> Hash[Compute content hash]
   Hash --> Changed{Changed?}
   Changed -- no --> Skip[Return unchanged]
   Changed -- yes --> Embed[Generate embedding]
-  Embed --> Upsert[Upsert content and embedding]
+  Embed --> Upsert[Upsert matching content and embedding tables]
   Upsert --> Analyze[Record indexing event]
   Analyze --> Done[Return status]
   Validate --> Delete{Delete/unpublish?}
@@ -184,11 +186,11 @@ flowchart TD
 - Missing content or conversation: `404 not_found`.
 - OpenAI failure in chat: return a friendly fallback answer and persist an error usage event.
 - Retrieval failure: continue with available sources when possible, but disclose limited results.
-- Streaming failure: emit an SSE `error` event and close the stream.
+- Chat timeout or generation failure: return one JSON error response with a stable code and friendly message, then persist the error usage event.
 
 ## Server Flow Charts
 
-### Streaming Chat Flow
+### Complete Chat Response Flow
 
 ```mermaid
 sequenceDiagram
@@ -199,17 +201,18 @@ sequenceDiagram
   participant DB as PostgreSQL
   participant OAI as OpenAI Responses
 
-  Browser->>WP: POST /chat/stream
-  WP->>API: POST /chat/stream with installation key
+  Browser->>WP: POST /chat
+  WP->>API: POST /chat with installation key
   API->>DB: Load conversation/profile
+  API->>DB: Load persisted allowed source keys
   API->>Graph: Start graph run
   Graph->>DB: Retrieve candidates
-  Graph->>OAI: Create streaming response
-  OAI-->>Graph: Text/tool deltas
-  Graph-->>API: Stream events
-  API-->>WP: SSE events
-  WP-->>Browser: SSE events
+  Graph->>OAI: Create response
+  OAI-->>Graph: Complete model response and tool results
   Graph->>DB: Persist messages, citations, usage
+  Graph-->>API: Complete answer payload
+  API-->>WP: JSON response
+  WP-->>Browser: Sanitized JSON response
 ```
 
 ### Future Mobile Flow
