@@ -10,8 +10,8 @@ Ask Sunny's production retrieval target is hybrid search across the backend's th
 
 Each eligible query combines:
 
-- ParadeDB `pg_search` BM25 over the source record's deterministic `search_document`.
-- pgvector cosine similarity over that source kind's embedding table.
+- ParadeDB `pg_search` BM25 over deterministic source text (`listings.embedding_text` for listings and `search_document` for the other kinds).
+- pgvector cosine similarity over that source kind's vector storage (`listings.embedding` for listings).
 - Structured filters applied consistently to both candidate paths.
 - Weighted Reciprocal Rank Fusion (RRF) followed by application ranking.
 
@@ -91,7 +91,7 @@ Use this order for native and Docker deployments:
 7. Preserve existing `shared_preload_libraries`, add `pg_search` when required, and restart PostgreSQL.
 8. Create and verify `vector`, `pg_search`, and `pgcrypto` with an extension-capable role.
 9. Run the versioned application migrations that add search keys and all three BM25 indexes.
-10. Run `ANALYZE` on the content and embedding tables after a large import or index build.
+10. Run `ANALYZE` on the content and vector-storage tables after a large import or index build.
 11. Run a direct BM25 query against listings, reviews, and WordPress content using a known local term.
 12. Run application checks and a scoped hybrid integration test.
 13. Set `HYBRID_SEARCH_ENABLED=true` only when every preceding gate passes.
@@ -103,9 +103,9 @@ The environment flag is an operator request, not proof of capability. Startup/re
 
 BM25 and vector retrieval run separately for each source kind:
 
-| Source kind | BM25 table/index | Vector table | Required scope |
+| Source kind | BM25 table/index | Vector storage | Required scope |
 |---|---|---|---|
-| Directorist listing | `directorist_listings` / `directorist_listings_bm25_idx` | `directorist_listing_embeddings` | Allowed directory key, active status, listing filters |
+| Directorist listing | `listings` / `listings_bm25_idx` | `listings.embedding` | Allowed directory key, `deleted_at IS NULL`, listing filters |
 | Directorist review | `directorist_reviews` / `directorist_reviews_bm25_idx` | `directorist_review_embeddings` | Allowed classified review key, active status, parent context |
 | WordPress post | `wordpress_content` / `wordpress_content_bm25_idx` | `wordpress_content_embeddings` | Allowed post-type key, active status, taxonomy/meta filters |
 
@@ -234,4 +234,3 @@ The hybrid phase is complete when:
 - Health reports the requested and effective search modes accurately.
 - The evaluation set meets agreed relevance and latency thresholds.
 - Backup, rollback, vector-only fallback, and final deployment reporting are rehearsed.
-

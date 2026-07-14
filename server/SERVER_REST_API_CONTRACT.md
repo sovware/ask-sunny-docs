@@ -127,7 +127,7 @@ WordPress owns the source settings UI and indexing filters. It synchronizes the 
 
 ### `POST /content/upsert`
 
-Indexes one source record. `source_kind` dispatches the payload to `directorist_listings`, `directorist_reviews`, or `wordpress_content`; there is no shared content-items table.
+Indexes one source record. `source_kind` dispatches the payload to `listings`, `directorist_reviews`, or `wordpress_content`; there is no shared content-items table. Listing writes validate and normalize the payload, hash deterministic content, reuse an existing vector when embedding text is unchanged, otherwise embed, then atomically upsert the listing row and clear any tombstone.
 
 Request:
 
@@ -185,10 +185,18 @@ Response:
 {
   "ok": true,
   "status": "indexed",
-  "content_record_id": "uuid",
-  "changed": true
+  "data_source_key": "directorist:businesses",
+  "source_id": "1514",
+  "content_hash": "sha256-hex",
+  "indexed_at": "2026-07-14T10:30:00Z",
+  "changed": true,
+  "embedding": {
+    "reused": false
+  }
 }
 ```
+
+`status` is `indexed` when a new vector is stored, `updated` when the row changes while its existing vector is reused, and `unchanged` when no database or embedding write is needed. The response uses public source identity rather than exposing an internal table key. Review and WordPress-post upserts use the same response shape.
 
 A Directorist review is a separate content record:
 
@@ -217,8 +225,6 @@ A Directorist review is a separate content record:
 }
 ```
 
-Review upserts use the same response shape as listing and WordPress-post upserts.
-
 An enabled WordPress post-type record is stored in `wordpress_content`:
 
 ```json
@@ -242,7 +248,7 @@ An enabled WordPress post-type record is stored in `wordpress_content`:
 
 ### `POST /content/bulk-upsert`
 
-Indexes multiple records. Maximum batch size should default to `50`. A batch may contain multiple source kinds; the service validates and upserts each item into its matching table and embedding table.
+Indexes multiple records. Maximum batch size should default to `50`. A batch may contain multiple source kinds; the service validates and upserts each item through its matching repository and vector-storage contract.
 
 Request:
 
@@ -516,16 +522,19 @@ Returns operational state.
 - `channel` must be an allowed product channel. `admin_test` is accepted only from the trusted WordPress installation or an authorized server administrator.
 - Chat requests must reject or ignore any caller-supplied `allowed_data_source_keys`; only the persisted backend list is authoritative.
 - `source_kind` must be `directorist_listing`, `directorist_review`, or `wordpress_post`.
-- The backend must route each source kind only to its matching table and embedding table; it must never store unlike kinds in a shared generic content table.
+- The backend must route each source kind only to its matching persistence boundary; it must never store unlike kinds in a shared generic content table. Listing vectors live on `listings`, while review and WordPress-content vectors use their respective embedding tables.
 - `data_source_key`, `data_source_label`, and `source_context` must be valid and internally consistent. The backend upserts source metadata from the received content rather than requiring a pre-registered or enabled source.
 - `source_id`, `source_url`, and `title` are required for active content.
-- Core Directorist preset fields use their canonical top-level payload fields and database columns.
+- A Directorist listing `source_id` must parse losslessly to a positive safe integer and is stored as `listings.id`; nonnumeric listing IDs are rejected with a field-specific validation error.
+- Directorist `directory_type_id` and a review's `parent_source_id` must also parse losslessly to positive safe integers before database lookup or storage.
+- Core Directorist preset fields are normalized into `normalized_metadata`; only measured, frequently ranked values such as `is_featured` receive dedicated listing columns.
 - Every non-core field uses the flat `listing_metadata` map, whether it is a Directorist custom field or an extension/third-party preset field. Do not create separate namespaces.
+- Listing `raw_payload` is sanitized and stored as `raw_metadata`; the canonical normalizer output, including the flat `listing_metadata` map, is stored as `normalized_metadata`.
 - Listings whose directory type supports extension-provided event fields include those typed values under `listing_metadata`; they remain `directorist_listing` records.
 - Each `listing_metadata` entry uses its stable field key and includes a label, field type, and sanitized typed value. Provider identity is optional metadata when available.
 - Apply configured limits to metadata field count, key/label length, array size, and serialized payload size. Reject executable values, unsafe URLs, and unexpected nested objects.
 - Active `directorist_review` records require `parent_data_source_key` and `parent_source_id`; the parent key must identify the listing source for the same directory type.
-- Review upsert resolves its parent to `directorist_listings.id`; if the listing is not indexed yet, return `409 parent_listing_missing` so WordPress can index the listing first and retry the review.
+- Review upsert resolves its parent to the composite `listings(data_source_id, id)` key; if the listing is not indexed yet, return `409 parent_listing_missing` so WordPress can index the listing first and retry the review.
 - Only approved public reviews are active. Unapproved, spammed, trashed, or deleted reviews are tombstoned.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.

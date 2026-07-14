@@ -16,7 +16,7 @@ Source rules:
 - Disabling an optional source preserves previously indexed backend records but removes its key from the backend's persisted `allowed_data_source_keys`. Only an explicit admin delete action removes indexed records.
 - Each data source carries context metadata used by RAG, such as label, description, content kind, audience, and installation-specific key/value attributes.
 - Optional WordPress sources may define inclusion filters. At minimum, support taxonomy-term filters, such as indexing only posts in selected categories. A controlled allowlist may add safe post-meta filters; arbitrary SQL or callbacks are not accepted as configuration.
-- Source kinds use separate backend tables and embeddings: Directorist listings, Directorist reviews, and optional WordPress content are not stored in one generic content table. Retrieval queries each allowed kind independently and merges scored candidates afterward.
+- Source kinds use separate backend persistence boundaries and are not stored in one generic content table. Directorist listing rows store raw and normalized metadata, deterministic embedding text, the vector, content hash, indexing timestamps, and soft-delete state together in `listings`. Reviews and optional WordPress content retain their own content and embedding tables. Retrieval queries each allowed kind independently and merges scored candidates afterward.
 
 Future content can be added by enabling the relevant post type rather than adding hardcoded content-specific branches:
 
@@ -150,9 +150,9 @@ Listing Metadata:
 Editorial Notes: Related article or newsletter mentions when available.
 ```
 
-Embedding generation must serialize every non-empty, public, content-bearing database column and every value in the flat `listing_metadata` map. Operational values such as database IDs, hashes, timestamps used only for synchronization, raw debug payloads, and private/admin-only fields are excluded. Sort metadata by stable field key so identical content produces identical embedding text and hashes.
+Embedding generation must serialize every non-empty, public, content-bearing listing field and every value in the flat `normalized_metadata.listing_metadata` map. Operational values such as database IDs, hashes, timestamps used only for synchronization, raw debug payloads, and private/admin-only fields are excluded. Sort metadata by stable field key so identical content produces identical embedding text and hashes. The resulting `embedding_text`, vector, and `content_hash` are persisted on the same `listings` row.
 
-The same rule applies independently to the other source tables: review embeddings include public `directorist_reviews` columns plus `review_metadata`, and WordPress-content embeddings include public `wordpress_content` columns plus `taxonomies` and `post_metadata`. Embedding text and hashes are computed within the source-kind repository and stored in that kind's embedding table.
+The same normalization rule applies independently to the other source tables: review embeddings include public `directorist_reviews` columns plus `review_metadata`, and WordPress-content embeddings include public `wordpress_content` columns plus `taxonomies` and `post_metadata`. Their embedding text and hashes are computed within the source-kind repository and stored through that kind's vector-storage contract.
 
 For each metadata entry, include its label, stable key, field type, provider when present, and sanitized value. Flatten arrays in their saved order, format dates/times consistently, and include file-upload URLs rather than file contents. Any change to a column or included metadata value must change the content hash and trigger re-embedding.
 

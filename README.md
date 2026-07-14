@@ -11,7 +11,6 @@ This documentation follows these requirements and architectural patterns:
 - OpenAI conversation state documentation: https://developers.openai.com/api/docs/guides/conversation-state
 - Groq Responses API and OpenAI compatibility documentation: https://console.groq.com/docs/responses-api and https://console.groq.com/docs/openai
 - ParadeDB self-hosted extension documentation: https://docs.paradedb.com/deploy/self-hosted/extension
-- Hybrid-search and deployment guidance adapts [`../ai-search-docs/HYBRID_SEARCH_PLAN.md`](../ai-search-docs/HYBRID_SEARCH_PLAN.md), [`../ai-search-docs/SEMANTIC_SEARCH_ARCHITECTURE.md`](../ai-search-docs/SEMANTIC_SEARCH_ARCHITECTURE.md), and [`../ai-search-docs/CODEX_SERVER_DEPLOYMENT_RUNBOOK.md`](../ai-search-docs/CODEX_SERVER_DEPLOYMENT_RUNBOOK.md).
 - LangGraph JavaScript documentation: https://docs.langchain.com/oss/javascript/langgraph/overview
 - LangGraph persistence documentation: https://docs.langchain.com/oss/python/langgraph/persistence
 
@@ -37,6 +36,7 @@ Launch requirements:
 - Attach stable context metadata to every data source so retrieval can filter before semantic ranking.
 - Include content from enabled WordPress post-type sources only when it matches that source's indexing filters.
 - Show **Listings** and **Listing Reviews** as the two initial Data Sources tabs, with the required filters, then add an individual tab for each optional post type enabled in settings.
+- Let administrators filter every Data Sources item table by index status, including indexed, not indexed, pending, failed, deleted, skipped, and ineligible records.
 - Return direct website links for citations and recommendation cards.
 - Return each chat turn as one complete JSON response; do not stream partial output.
 - Preserve conversation context across follow-up questions.
@@ -111,7 +111,7 @@ WordPress remains responsible for collecting site content, configuring and rende
 - The backend uses a provider-neutral abstraction for Responses API calls. `AI_PROVIDER=openai|groq` selects a registered adapter at runtime; provider keys, base URLs, models, and embedding settings remain environment configuration, while database tables store no provider discriminator or provider-specific conversation state. Chat responses are not streamed.
 - Native or Dockerized ParadeDB uses `pg_search` for BM25 and pgvector for dense similarity. Hybrid retrieval is the verified production default and fuses both candidate sets only after applying the stored data-source allowlist and structured filters. Installation and upgrades begin with hybrid disabled; it must not be enabled until the installed package/image matches the running PostgreSQL major version, execution OS, and architecture and all extension, index, and smoke checks pass.
 - WordPress and Directorist remain the content source of truth for launch. Backend content tables are an indexed search/read model.
-- Backend content storage is separated by source kind: Directorist listings, Directorist reviews, and optional WordPress content use different tables and embedding tables.
+- Backend content storage is separated by source kind. Directorist listings use a dedicated `listings` table with inline normalized state and vector data; reviews and optional WordPress content use their own content and embedding tables.
 - Every Directorist directory type produces a mandatory listing source that cannot be disabled. Listing reviews are optional as one global source family; the administrator does not enable or disable reviews per directory type. Optional WordPress post-type sources are explicitly enabled by an administrator.
 - When the global reviews setting is enabled, approved reviews from every directory type are indexed as separate records linked to their parent listing; review text is not embedded into the listing record.
 - Retrieval filters by `data_source_key` and source context metadata; `source_kind` alone is not a sufficient context boundary.

@@ -244,9 +244,10 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 
 1. **Given** a user with `manage_options` and a valid nonce, **when** an admin route is called with valid input, **then** the documented response is returned.
 2. **Given** a user without permission or an invalid nonce, **when** any admin route is called, **then** the action is rejected without leaking protected state.
-3. **Given** a source-items request, **when** pagination, search, or status filters are supplied, **then** eligible, ineligible, indexed, pending, deleted, and failed items are represented accurately.
-4. **Given** a destructive single-item or source-wide delete, **when** confirmation is missing, **then** no deletion is sent.
-5. **Given** any backend response or error, **when** it is returned through WordPress REST, **then** it is normalized and sanitized into the plugin's stable response shape.
+3. **Given** a source-items request, **when** pagination, search, or index-status filters are supplied, **then** indexed, not-indexed, pending, failed, deleted, skipped, and ineligible items are represented accurately.
+4. **Given** an index-status filter and other tab filters, **when** items are returned, **then** filtering occurs before pagination and status counts respect all other filters while remaining independent of the selected index status.
+5. **Given** a destructive single-item or source-wide delete, **when** confirmation is missing, **then** no deletion is sent.
+6. **Given** any backend response or error, **when** it is returned through WordPress REST, **then** it is normalized and sanitized into the plugin's stable response shape.
 
 **Tasks**
 
@@ -254,7 +255,8 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Implement aggregated Listings, Listing Reviews, optional post-type tab, source update, and tab-items routes.
 - [ ] Implement provisioning, single index/delete, reindex, status, diagnostics, admin test-chat, and source-wide delete routes.
 - [ ] Add admin middleware for capabilities and nonces.
-- [ ] Add DTO validation, pagination, search, directory type, status, category, location, tag, index-status filters, stable errors, and destructive confirmation.
+- [ ] Define canonical `all`, `indexed`, `not_indexed`, `pending`, `failed`, `deleted`, `skipped`, and `ineligible` index-status filtering for posts and review comments.
+- [ ] Add DTO validation, pre-pagination filtering, status counts, search, directory type, WordPress status, category, location, tag, index-status filters, stable errors, and destructive confirmation.
 - [ ] Sanitize and minimize every backend response exposed to the admin application.
 - [ ] Add permission, nonce, validation, pagination, confirmation, success, and error tests for every route.
 
@@ -271,9 +273,9 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 
 1. **Given** an unprovisioned installation, **when** the dashboard opens, **then** it guides the administrator through configuration, provisioning, source review, diagnostics, initial indexing, and widget enablement.
 2. **Given** only Directorist sources are active, **when** Data Sources opens, **then** exactly two initial tabs appear: Listings and Listing Reviews.
-3. **Given** the Listings tab, **when** items load, **then** the administrator can filter by directory type, status, category, and location while viewing counts, eligibility, index/retrieval status, timestamps, and errors.
-4. **Given** the Listing Reviews tab, **when** items load, **then** the administrator can filter by directory type and see the one global reviews enabled state without per-directory toggles.
-5. **Given** an optional post, page, or custom post type is enabled in settings, **when** Data Sources reloads, **then** that post type receives its own tab with status, category, and tag controls supported by its registered taxonomies.
+3. **Given** the Listings tab, **when** items load, **then** the administrator can filter by index status, directory type, WordPress status, category, and location while viewing counts, eligibility, retrieval status, timestamps, and errors.
+4. **Given** the Listing Reviews tab, **when** items load, **then** the administrator can filter by index status and directory type and see the one global reviews enabled state without per-directory toggles.
+5. **Given** an optional post, page, or custom post type is enabled in settings, **when** Data Sources reloads, **then** that post type receives its own tab with index status plus WordPress status, category, and tag controls supported by its registered taxonomies.
 6. **Given** an indexing operation, **when** it is pending, running, completed, interrupted, or failed, **then** accessible progress and appropriate retry/resume actions are shown.
 7. **Given** a version conflict, network error, empty state, or destructive operation, **when** it occurs, **then** the dashboard presents a clear accessible state and never claims unsynchronized success.
 
@@ -282,10 +284,11 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Design Setup, General, Data Sources, Indexing, Diagnostics, and Test Chat submenus.
 - [ ] Implement the setup/provisioning workflow.
 - [ ] Implement the two initial Listings and Listing Reviews tabs.
-- [ ] Implement Listings filters for directory type, status, category, and location.
+- [ ] Implement the shared Index status filter and status counts on every Data Sources tab.
+- [ ] Implement Listings filters for directory type, WordPress status, category, and location.
 - [ ] Implement Listing Reviews directory-type filtering and one global review enablement control.
-- [ ] Add one tab per enabled optional post type with status, category, and tag filters when supported.
-- [ ] Implement paginated item tables with search, indexing status, and tab-specific filters.
+- [ ] Add one tab per enabled optional post type with WordPress status, category, and tag filters when supported.
+- [ ] Implement paginated item tables with search, pre-pagination index-status filtering, stable ordering, and tab-specific filters.
 - [ ] Implement progress, retry, resume, conflict, empty, error, and confirmation states.
 - [ ] Add keyboard, focus, screen-reader, contrast, responsive, and reduced-motion support.
 - [ ] Add component, REST-integration, accessibility, and browser end-to-end tests.

@@ -24,7 +24,7 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 - Validating and normalizing received content.
 - Producing deterministic BM25 `search_document` and embedding text.
 - Hashing content and skipping unchanged embeddings.
-- Persisting source-specific indexed records and embeddings.
+- Persisting source-specific indexed records and vector state atomically where required.
 - Enforcing the stored source allowlist on every retrieval.
 - Running structured filters, BM25 retrieval, vector retrieval, and rank fusion.
 - Orchestrating chat through LangGraph and the provider-neutral AI adapter.
@@ -35,7 +35,7 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 
 - Durable indexed content and conversation state.
 - `pg_search` BM25 indexes over deterministic public search text.
-- pgvector indexes over source-specific embedding tables.
+- pgvector indexes over source-specific vector storage, including the inline `listings.embedding` column.
 - Transactional constraints, tombstones, migration state, and query execution.
 
 ### Optional Redis Owns
@@ -114,9 +114,9 @@ Ask Sunny uses a concrete source key plus a broad source kind:
 
 The source-kind repositories remain separate:
 
-| Source kind | Content table | Embedding table |
+| Source kind | Content table | Vector storage |
 |---|---|---|
-| `directorist_listing` | `directorist_listings` | `directorist_listing_embeddings` |
+| `directorist_listing` | `listings` | `listings.embedding` |
 | `directorist_review` | `directorist_reviews` | `directorist_review_embeddings` |
 | `wordpress_post` | `wordpress_content` | `wordpress_content_embeddings` |
 
@@ -363,4 +363,3 @@ Diagnostics must report requested/effective hybrid mode, PostgreSQL version, `pg
 - Native and Docker deployments both pass the `pg_search` package compatibility gate.
 - A mismatch or missing extension keeps hybrid disabled and vector-only diagnostics honest.
 - Backup, migration, restore, reindex, and cache invalidation procedures are rehearsed.
-

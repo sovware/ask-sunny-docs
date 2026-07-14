@@ -235,13 +235,14 @@ The Data Sources submenu should include:
 - A WordPress-owned source registry that controls which records are sent to the backend.
 - Backend allowlist synchronization status and version, with a retry action when WordPress and backend differ.
 - Exactly two initial tabs: **Listings** and **Listing Reviews**.
-- A **Listings** tab aggregating all Directorist directory types, with filter controls for directory type, WordPress/listing status, category, and location. Listing sources are always enabled and cannot be excluded.
-- A **Listing Reviews** tab aggregating reviews from all directory types, with a directory-type filter. Reviews are controlled by one global optional setting; there are no per-directory enable/disable controls.
+- A **Listings** tab aggregating all Directorist directory types, with filter controls for index status, directory type, WordPress/listing status, category, and location. Listing sources are always enabled and cannot be excluded.
+- A **Listing Reviews** tab aggregating reviews from all directory types, with index-status and directory-type filters. Reviews are controlled by one global optional setting; there are no per-directory enable/disable controls.
 - Enable/disable controls for eligible non-Directorist post types such as posts, pages, and public custom post types.
-- One additional tab for each enabled non-Directorist post type. Each tab provides status, category, and tag filters when those taxonomies are registered for that post type.
+- One additional tab for each enabled non-Directorist post type. Each tab provides an index-status filter plus WordPress status, category, and tag filters when those taxonomies are registered for that post type.
 - Source label, description, and context metadata fields for each optional post-type source.
 - Status, category, tag, and allowlisted post-meta indexing filters for optional post-type sources, limited to statuses and taxonomies supported by that post type.
-- A paginated item table within each tab showing matching listings, reviews, or posts, including filtered-out items, with title, record type, WordPress status, eligibility, backend index status, RAG retrieval status, last indexed time, and last error. Provide a per-item retry/reindex action when the item is eligible.
+- A paginated item table within each tab showing matching listings, reviews, or posts, including filtered-out items, with title, record type, WordPress status, eligibility, backend index status, RAG retrieval status, last indexed time, and last error. Every table provides an **Index status** select with **All**, **Indexed**, **Not indexed**, **Pending**, **Failed**, **Deleted**, **Skipped**, and **Ineligible** options. Provide a per-item retry/reindex action when the item is eligible.
+- Index-status counts update with search and tab-specific filters but are calculated before applying the selected index-status value, so the administrator can see how many records exist in every status without clearing the filter.
 - An explicit **Delete indexed data** action on each item and a destructive **Delete all indexed data** action for each source tab, both protected by confirmation and `manage_options`.
 - Diagnostics.
 - Recent usage summary fetched from backend.

@@ -125,7 +125,29 @@ failed
 skipped
 ```
 
-The Data Sources item API computes `not_indexed` when no indexing meta exists and `ineligible` when an item does not match its current indexing filter. Source enablement does not overwrite index status: an item may remain `indexed` while its separate retrieval status is `excluded_source_disabled`. Retrieval status values are computed as `included`, `excluded_source_disabled`, or `excluded_by_filter` and do not need to be stored in post meta.
+The Data Sources item API exposes these canonical filter values:
+
+```text
+indexed
+not_indexed
+pending
+failed
+deleted
+skipped
+ineligible
+```
+
+Canonical status is derived consistently for posts and review comments:
+
+- `ineligible` when the record does not match its current source indexing filter. This takes precedence over stored indexing meta.
+- `not_indexed` when the record is eligible but has no `_ask_sunny_index_status` value.
+- `indexed` when the stored value is `indexed` or `unchanged`; `unchanged` means the existing backend index remains current.
+- `pending`, `failed`, `deleted`, or `skipped` when that exact stored value is present.
+- Unknown stored values fail closed to `not_indexed` in the response and are recorded in diagnostics for repair.
+
+The item endpoint accepts one canonical `index_status` value at a time, with `all` as the default. Status matching occurs before pagination. Search and source-specific filters are applied first; status counts are then computed from that candidate set before the selected `index_status` narrows the returned page.
+
+Source enablement does not overwrite index status: an item may remain `indexed` while its separate retrieval status is `excluded_source_disabled`. Retrieval status values are computed as `included`, `excluded_source_disabled`, or `excluded_by_filter` and do not need to be stored in post meta.
 
 `_ask_sunny_last_payload` is optional and should be disabled or capped in production to avoid storing large duplicated content.
 

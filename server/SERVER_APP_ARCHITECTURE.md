@@ -172,7 +172,7 @@ The final answer should include:
 
 ## ParadeDB Hybrid Retrieval
 
-ParadeDB runs either as a native PostgreSQL-compatible service or as the database service in the optional Docker stack. Enable both `vector` and ParadeDB's `pg_search` extension. Each content table keeps its source-specific pgvector embedding table and also receives a ParadeDB BM25 index over its searchable public text and metadata representation.
+ParadeDB runs either as a native PostgreSQL-compatible service or as the database service in the optional Docker stack. Enable both `vector` and ParadeDB's `pg_search` extension. The `listings` table keeps normalized listing state and its pgvector embedding together and receives a ParadeDB BM25 index over the same searchable representation. Review and WordPress-content repositories retain their source-specific vector tables and BM25 indexes.
 
 Retrieval order:
 
@@ -187,7 +187,7 @@ Hybrid search is the normal mode only after deployment verification and then exe
 
 ## Indexing Architecture
 
-WordPress owns the source registry, enable/disable controls, and indexing filters. It sends only eligible listings, reviews, and posts. The backend dispatches by `source_kind` into separate persistence boundaries: Directorist listings, Directorist reviews, and WordPress content. Each kind has its own table, normalizer, repository, and embedding table. Listing payloads separate Directorist core preset values into canonical columns and put every non-core value into one flat `listing_metadata` map. Review records resolve `parent_data_source_key` and `parent_source_id` to a foreign key in `directorist_listings` so ranking can aggregate review evidence.
+WordPress owns the source registry, enable/disable controls, and indexing filters. It sends only eligible listings, reviews, and posts. The backend dispatches by `source_kind` into separate persistence boundaries: Directorist listings, Directorist reviews, and WordPress content. Each kind has its own table, normalizer, and repository. Raw metadata, normalized metadata, deterministic embedding text, vector, content hash, indexing timestamps, and soft-delete state live atomically in `listings`. Review and WordPress content use their own content and vector tables. Review records resolve `parent_data_source_key` and `parent_source_id` to the composite listing key so ranking can aggregate review evidence.
 
 WordPress owns the source settings UI and computes the complete allowlist. After provisioning and whenever source enablement changes, WordPress atomically synchronizes `allowed_data_source_keys` to backend installation configuration. The backend stores and enforces that list across structured filtering, BM25 retrieval, vector retrieval, detail lookup, and model tools. Disabling a source updates the allowlist without deleting indexed content. Deletion occurs only when WordPress sends an explicit per-item deletion or bulk delete-by-data-source request initiated by an administrator or maintenance workflow.
 
@@ -204,7 +204,7 @@ flowchart TD
   Hash --> Changed{Changed?}
   Changed -- no --> Skip[Return unchanged]
   Changed -- yes --> Embed[Generate embedding]
-  Embed --> Upsert[Upsert matching content and embedding tables]
+  Embed --> Upsert[Atomically upsert source-specific content and vector state]
   Upsert --> Analyze[Record indexing event]
   Analyze --> Done[Return status]
   Validate --> Delete{Delete/unpublish?}

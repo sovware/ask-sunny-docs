@@ -70,7 +70,7 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 1. **Given** an empty supported ParadeDB PostgreSQL database, **when** migrations run, **then** all launch tables, constraints, `pg_search`/pgvector extensions, BM25 indexes, and vector indexes are created successfully.
 2. **Given** an up-to-date database, **when** migrations run again, **then** no migration is applied twice and no data is changed unexpectedly.
 3. **Given** a failed migration, **when** deployment stops, **then** the failure is visible and the documented recovery procedure can restore a usable state.
-4. **Given** records of unlike source kinds, **when** data is written, **then** database constraints and repositories prevent them from sharing the wrong content or embedding table.
+4. **Given** records of unlike source kinds, **when** data is written, **then** database constraints and repositories prevent them from sharing the wrong persistence boundary or vector storage.
 5. **Given** a changed embedding dimension, **when** a migration is planned, **then** it requires new vector storage and an explicit re-embedding procedure.
 6. **Given** any missing `pg_search` extension, BM25 index, or direct BM25 smoke-query failure, **when** deployment validation runs, **then** hybrid search remains disabled and the degraded state is reported.
 7. **Given** a native package or Docker database image, **when** its compatibility gate runs, **then** its PostgreSQL major target, execution OS/release, and CPU architecture exactly match the running database environment before extension or BM25 migrations continue.
@@ -81,9 +81,12 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Add PostgreSQL pooling, transaction helpers, and migration tooling.
 - [ ] Create and track the `schema_migrations` table.
 - [ ] Enable `pg_search`, `vector`, and `pgcrypto` through migrations.
-- [ ] Implement configuration, API-key, data-source, content, embedding, conversation, usage, admin, and checkpoint tables.
+- [ ] Implement configuration, API-key, data-source, content, vector-storage, conversation, usage, admin, and checkpoint tables.
+- [ ] Implement listing persistence with composite source identity, raw/normalized JSONB, inline embedding text and vector, content hash, indexed/source-updated timestamps, and soft deletion.
+- [ ] Implement listing upsert, unchanged-content skip, embedding reuse, tombstone revival, unknown-ID tombstones, and post-write cache invalidation.
+- [ ] Add an idempotent repair migration and regression fixture for JSONB values that were accidentally stored as encoded strings.
 - [ ] Add foreign keys, uniqueness constraints, checks, GIN indexes, source-specific BM25 indexes, and vector indexes.
-- [ ] Add deterministic `search_document` and stable `search_key` fields for ParadeDB BM25 retrieval.
+- [ ] Add deterministic BM25 text (`listings.embedding_text` for listings and `search_document` for other kinds) plus stable `search_key` fields.
 - [ ] Add `ANALYZE`, direct `|||`/`pdb.score(search_key)` smoke checks, and hybrid enablement gates.
 - [ ] Add native-host and database-container compatibility checks for PostgreSQL major, OS ID/release or codename, CPU architecture, installed package version, and pinned image digest.
 - [ ] Prevent extension/BM25 migrations and effective hybrid mode when compatibility evidence is incomplete or mismatched.
@@ -169,7 +172,7 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Create canonical contract fixtures for all three source kinds and boundary cases.
 - [ ] Implement source-key, kind, parent, URL, status, field, and metadata validation.
 - [ ] Implement retrieval-only `data_sources` registration and parent-source linkage.
-- [ ] Implement separate listing, review, and WordPress-content repositories.
+- [ ] Implement separate listing, review, and WordPress-content repositories; keep listing normalized state and vector state atomic in `listings`.
 - [ ] Enforce metadata field count, key, label, array, nesting, URL, and payload-size limits.
 - [ ] Add validation and cross-kind isolation tests.
 
@@ -184,7 +187,7 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 
 **Acceptance criteria**
 
-1. **Given** a valid new record, **when** it is indexed, **then** canonical normalized content, deterministic embedding text, a content hash, and a vector are stored in the matching tables.
+1. **Given** a valid new record, **when** it is indexed, **then** canonical normalized content, deterministic embedding text, a content hash, and a vector are stored through the matching persistence boundary; listing state is atomic in one row.
 2. **Given** an identical payload delivered repeatedly, **when** it is processed, **then** the server reports `unchanged` and does not request another embedding.
 3. **Given** any public content-bearing field change, **when** it is processed, **then** the content hash changes and the vector is regenerated.
 4. **Given** only operational or raw-debug values change, **when** the payload is processed, **then** the content hash and embedding remain unchanged.
@@ -197,6 +200,7 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Integrate the configured embeddings API with timeout, retry, and response validation.
 - [ ] Implement transactional content and source-specific vector upserts.
 - [ ] Skip embeddings for matching content hashes.
+- [ ] Reuse the existing listing vector when deterministic `embedding_text` is unchanged but normalized or ranking metadata must be synchronized.
 - [ ] Record indexing latency, model, token/cost metadata when available, and errors.
 - [ ] Add deterministic hashing, unchanged-content, changed-content, and failure tests.
 

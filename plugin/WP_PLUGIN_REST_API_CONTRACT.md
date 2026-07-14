@@ -106,12 +106,13 @@ Returns the Data Sources submenu model. The first two tabs are always **Listings
       "source_kind": "directorist_listing",
       "enabled": true,
       "filters": {
+        "index_statuses": ["all", "indexed", "not_indexed", "pending", "failed", "deleted", "skipped", "ineligible"],
         "directory_types": [{"id": "42", "label": "Event Directory"}],
         "statuses": ["publish", "pending", "draft", "trash"],
         "categories": [{"id": 12, "label": "Workshops"}],
         "locations": [{"id": 8, "label": "Downtown"}]
       },
-      "counts": {"eligible": 250, "indexed": 247, "pending": 2, "failed": 1}
+      "counts": {"all": 260, "eligible": 258, "indexed": 247, "not_indexed": 4, "pending": 2, "failed": 1, "deleted": 3, "skipped": 1, "ineligible": 2}
     },
     {
       "key": "listing-reviews",
@@ -119,9 +120,10 @@ Returns the Data Sources submenu model. The first two tabs are always **Listings
       "source_kind": "directorist_review",
       "enabled": false,
       "filters": {
+        "index_statuses": ["all", "indexed", "not_indexed", "pending", "failed", "deleted", "skipped", "ineligible"],
         "directory_types": [{"id": "42", "label": "Event Directory"}]
       },
-      "counts": {"eligible": 125, "indexed": 0, "pending": 0, "failed": 0}
+      "counts": {"all": 125, "eligible": 120, "indexed": 0, "not_indexed": 120, "pending": 0, "failed": 0, "deleted": 0, "skipped": 0, "ineligible": 5}
     },
     {
       "key": "wordpress:post",
@@ -129,6 +131,7 @@ Returns the Data Sources submenu model. The first two tabs are always **Listings
       "source_kind": "wordpress_post",
       "enabled": true,
       "filters": {
+        "index_statuses": ["all", "indexed", "not_indexed", "pending", "failed", "deleted", "skipped", "ineligible"],
         "statuses": ["publish", "draft", "pending", "private", "trash"],
         "categories": [{"id": 12, "label": "Guides"}],
         "tags": [{"id": 7, "label": "Planning"}]
@@ -140,7 +143,7 @@ Returns the Data Sources submenu model. The first two tabs are always **Listings
           "post_tag": {"operator": "IN", "term_ids": [7]}
         }
       },
-      "counts": {"eligible": 35, "indexed": 35, "pending": 0, "failed": 0}
+      "counts": {"all": 39, "eligible": 37, "indexed": 35, "not_indexed": 1, "pending": 0, "failed": 0, "deleted": 1, "skipped": 0, "ineligible": 2}
     }
   ],
   "available_post_types": [
@@ -213,6 +216,8 @@ If the backend allowlist update fails or returns a version conflict, return an e
 
 Returns the paginated item table for one tab. All tabs support `page`, `per_page`, `search`, and optional `index_status`.
 
+`index_status` accepts exactly one of `all`, `indexed`, `not_indexed`, `pending`, `failed`, `deleted`, `skipped`, or `ineligible`; it defaults to `all`. Any other value returns `400 invalid_index_status`. `indexed` includes records whose last successful backend result was `indexed` or `unchanged`. `not_indexed` means an eligible record has no indexing state. `ineligible` is computed from current source filters and overrides stored indexing meta for this view.
+
 - `listings` supports `directory_type_ids[]`, `statuses[]`, `category_ids[]`, and `location_ids[]`.
 - `listing-reviews` supports `directory_type_ids[]`.
 - Each enabled `wordpress:{post_type}` tab supports `statuses[]`, `category_ids[]`, and `tag_ids[]` when those taxonomies exist.
@@ -222,6 +227,21 @@ The response includes eligible, ineligible, and not-yet-indexed records. Aggrega
 ```json
 {
   "tab_key": "listing-reviews",
+  "applied_filters": {
+    "search": "",
+    "index_status": "indexed",
+    "directory_type_ids": ["42"]
+  },
+  "status_counts": {
+    "all": 125,
+    "indexed": 100,
+    "not_indexed": 8,
+    "pending": 2,
+    "failed": 3,
+    "deleted": 4,
+    "skipped": 1,
+    "ineligible": 7
+  },
   "items": [
     {
       "data_source_key": "directorist:events:reviews",
@@ -240,9 +260,11 @@ The response includes eligible, ineligible, and not-yet-indexed records. Aggrega
       "backend_content_id": "uuid"
     }
   ],
-  "pagination": {"page": 1, "per_page": 25, "total": 125, "pages": 5}
+  "pagination": {"page": 1, "per_page": 25, "total": 100, "pages": 4}
 }
 ```
+
+`status_counts` respects `search` and all tab-specific filters but ignores the selected `index_status`. `pagination.total` and `pagination.pages` describe the status-filtered result set. Apply the complete filter set before `LIMIT` and `OFFSET`, use a stable record-ID tie-breaker, and reset the requested page to `1` in the admin client whenever any filter changes.
 
 ### `POST /index/:id/delete`
 

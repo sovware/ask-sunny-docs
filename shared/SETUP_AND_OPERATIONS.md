@@ -138,7 +138,7 @@ flowchart TD
   WPDiag --> Reindex[Reindex if required]
 ```
 
-This flow adapts the safety requirements from [`../../ai-search-docs/CODEX_SERVER_DEPLOYMENT_RUNBOOK.md`](../../ai-search-docs/CODEX_SERVER_DEPLOYMENT_RUNBOOK.md) to both deployment modes: back up first, preserve secrets, inspect compatibility before installation, stop incompatible old code before migrations, verify extensions and indexes directly, keep hybrid disabled on verification failure, and report every fallback.
+For both deployment modes, back up first, preserve secrets, inspect compatibility before installation, stop incompatible old code before migrations, verify extensions and indexes directly, keep hybrid disabled on verification failure, and report every fallback.
 
 ### Native Production Deployment
 
@@ -228,7 +228,7 @@ Initial reindex:
 
 Reindex after changes:
 
-- New embedding model or dimensions: migrate vector tables and force a full reindex.
+- New embedding model or dimensions: migrate every vector-storage surface, including `listings.embedding`, and force a full reindex.
 - New normalization or `search_document` rules: force a full or versioned reindex.
 - Single listing update: index one item.
 - When global Listing Reviews is enabled, review approval/content/rating changes reindex the review; unapproval, spam, trash, or deletion tombstones it.
