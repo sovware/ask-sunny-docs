@@ -8,7 +8,7 @@ Source rules:
 
 - Every discovered Directorist directory type is registered as a mandatory data source and all eligible published listings in it are indexed. The administrator cannot disable Directorist listing sources.
 - A listing belongs to the data source identified by its Directorist directory type, such as `directorist:events` or `directorist:businesses`.
-- Each directory type also has a separate, mandatory review data source, such as `directorist:events:reviews`. Approved reviews are indexed as `directorist_review` records and reference their parent listing; they are not folded into the listing embedding.
+- Each directory type exposes a classified review key, such as `directorist:events:reviews`, under one optional **Listing Reviews** source family. Administrators enable or disable reviews globally, not per directory type. When the global setting is enabled, approved reviews from all directory types are indexed as `directorist_review` records and reference their parent listing; they are not folded into the listing embedding.
 - A review inherits the parent listing's directory type, categories, locations, source URL, and relevant context metadata so retrieval can filter reviews by the same context as listings.
 - Event dates, promotions, and other Directorist features remain fields or related context on a listing; they do not create parallel listing source types.
 - The administrator may enable or disable eligible non-Directorist WordPress post types, including `post`, `page`, and public custom post types.
@@ -27,7 +27,7 @@ Future content can be added by enabling the relevant post type rather than addin
 
 ## Retrieval Model
 
-Ask Sunny should combine structured filtering and semantic retrieval. Do not rely on a generic website-context chatbot.
+Ask Sunny should combine structured filtering, ParadeDB BM25 keyword matching, and pgvector semantic retrieval. Do not rely on a generic website-context chatbot.
 
 Representative questions:
 
@@ -49,6 +49,12 @@ Structured filters:
 - Budget or price level.
 - Featured state and configured promotion metadata when present.
 
+Keyword retrieval:
+
+- ParadeDB `pg_search` BM25 over deterministic `search_document` text for each source kind.
+- Exact names, phrases, categories, locations, amenities, and rare site-specific terminology.
+- Bounded candidates produced only after allowed-key, status, and applicable structured constraints.
+
 Semantic retrieval:
 
 - User intent and natural-language needs.
@@ -60,12 +66,16 @@ Semantic retrieval:
 flowchart TD
   Query[User message] --> Extract[Extract constraints]
   Extract --> Filters[Structured filters]
+  Extract --> Keyword[BM25 query]
   Extract --> Semantic[Semantic query]
   Filters --> CandidateSQL[SQL candidate filtering]
+  Keyword --> BM25[ParadeDB BM25 retrieval]
   Semantic --> Vector[Vector retrieval]
   CandidateSQL --> Merge[Merge candidates]
+  BM25 --> Merge
   Vector --> Merge
-  Merge --> Rank[Ranking policy]
+  Merge --> Fusion[Weighted reciprocal-rank fusion]
+  Fusion --> Rank[Ranking policy]
   Rank --> Cite[Attach citations]
   Cite --> Answer[Grounded answer]
 ```
@@ -76,6 +86,7 @@ Ranking should prioritize relevance first.
 
 Base signals:
 
+- BM25 keyword rank.
 - Semantic similarity.
 - Exact structured match.
 - Event-date match when the listing's directory type provides event fields.
@@ -88,7 +99,7 @@ Base signals:
 
 Promotion signals must be metadata-driven rather than fixed content-table columns. Featured content may receive a ranking boost only after meeting the user's actual constraints. Extension-provided promotion fields, if present, live in `listing_metadata` and require an explicit ranking configuration before use.
 
-Review records may contribute semantic evidence and aggregate rating signals to their parent listing through `parent_data_source_key` and `parent_source_id`. A review is not returned as a listing recommendation card, but it may be cited directly when its text supports the answer.
+When the optional Listing Reviews family is enabled, a review record may contribute BM25/semantic evidence and aggregate rating signals to its parent listing through `parent_data_source_key` and `parent_source_id`. A review is not returned as a listing recommendation card, but it may be cited directly when its text supports the answer.
 
 ## Clarifying Questions
 
@@ -254,4 +265,6 @@ Track:
 - Structured-field correctness, including dates when applicable.
 - Data-source selection and source-context filter correctness.
 - Results with missing URLs.
-- Backend latency and OpenAI token usage.
+- Backend latency and selected-provider token usage.
+- BM25, vector, and fused-result contribution rates.
+- Active AI provider, provider latency, token usage, and provider error rate.

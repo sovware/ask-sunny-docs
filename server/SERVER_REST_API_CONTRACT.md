@@ -32,9 +32,21 @@ Returns server health.
   "service": "ask-sunny-api",
   "version": "1.0.0",
   "database": "ok",
+  "paradedb": "ok",
+  "vector_search": "ok",
+  "bm25_search": "ok",
+  "hybrid_search": {
+    "requested": true,
+    "effective": true,
+    "status": "enabled",
+    "reason": null
+  },
+  "ai_provider": "openai",
   "redis": "disabled"
 }
 ```
+
+`hybrid_search.status` may report `disabled` or `degraded` when package compatibility is unproven, `pg_search`, a required BM25 index, or smoke verification is unavailable. Health must not report BM25 as enabled merely because the environment flag is set. A requested-but-ineffective hybrid configuration reports `requested: true`, `effective: false`, and a stable reason code.
 
 ### `POST /auth/provision-installation`
 
@@ -321,6 +333,7 @@ Request:
   "conversation_id": "optional-uuid",
   "anonymous_session_id": "browser-session-id",
   "external_user_id": "optional-wordpress-user-id",
+  "channel": "web",
   "message": "What workshops are available this Saturday?",
   "context": {
     "timezone": "UTC",
@@ -330,6 +343,10 @@ Request:
 ```
 
 The chat caller does not provide `allowed_data_source_keys`. The backend loads its persisted allowlist for every chat turn. Retrieval and tool calls may narrow that list for the user's context but must never search outside it.
+
+`channel` accepts `web`, `mobile`, or `admin_test`. WordPress sends `web` for the public widget and `admin_test` only from its capability-protected Test Chat route. Channel is product context, not an AI-provider selector.
+
+The chat caller also cannot choose the AI provider or model. The server uses `AI_PROVIDER` and the selected provider's environment configuration for the entire turn.
 
 Response:
 
@@ -442,8 +459,36 @@ Returns operational state.
 ```json
 {
   "database": "ok",
+  "paradedb": {
+    "pg_search": "ok",
+    "vector": "ok",
+    "bm25_indexes": "ok",
+    "hybrid_search": {
+      "requested": true,
+      "effective": true,
+      "status": "enabled",
+      "reason": null
+    },
+    "package_compatibility": {
+      "status": "verified",
+      "postgresql_major": 18,
+      "os_id": "ubuntu",
+      "os_release": "noble",
+      "architecture": "amd64",
+      "package_version": "pinned-release",
+      "extension_version": "installed-release",
+      "image_digest": null,
+      "verified_at": "2026-07-13T10:00:00Z"
+    }
+  },
   "redis": "disabled",
-  "openai": "configured",
+  "ai": {
+    "provider": "openai",
+    "configured": true,
+    "model": "configured-model-name",
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small"
+  },
   "retrieval_config": {
     "allowed_data_source_keys": [
       "directorist:businesses",
@@ -468,6 +513,7 @@ Returns operational state.
 ## Validation Rules
 
 - `message` is required for chat and capped by `MAX_CHAT_INPUT_CHARS`.
+- `channel` must be an allowed product channel. `admin_test` is accepted only from the trusted WordPress installation or an authorized server administrator.
 - Chat requests must reject or ignore any caller-supplied `allowed_data_source_keys`; only the persisted backend list is authoritative.
 - `source_kind` must be `directorist_listing`, `directorist_review`, or `wordpress_post`.
 - The backend must route each source kind only to its matching table and embedding table; it must never store unlike kinds in a shared generic content table.
@@ -484,3 +530,5 @@ Returns operational state.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
+- Chat routes must reject or ignore caller-supplied `ai_provider`, provider API keys, base URLs, and model names; only environment configuration is authoritative.
+- Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.

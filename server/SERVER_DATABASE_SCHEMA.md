@@ -1,6 +1,6 @@
 # Server Database Schema
 
-The Ask Sunny server uses PostgreSQL as the durable system of record for indexed content, conversations, usage, and admin state. WordPress remains the editorial source of truth; backend content tables are a searchable read model.
+The Ask Sunny server uses ParadeDB's PostgreSQL distribution as the durable system of record for indexed content, conversations, usage, and admin state. WordPress remains the editorial source of truth; backend content tables are a searchable read model. ParadeDB `pg_search` provides BM25 keyword retrieval and pgvector provides dense similarity retrieval.
 
 Use `BIGSERIAL` or UUIDs consistently during implementation. This document uses UUID primary keys where records may be referenced by browser, mobile, or support tooling.
 
@@ -8,8 +8,11 @@ Use `BIGSERIAL` or UUIDs consistently during implementation. This document uses 
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_search;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 ```
+
+These extension statements may run only after the deployment compatibility gate. Native installations and optional Docker deployments must prove that the installed ParadeDB/`pg_search` artifact matches the running PostgreSQL major version, execution OS/release, and CPU architecture. For Docker, inspect the database container rather than assuming the host OS or image tag is sufficient. `pg_search` must be present in `shared_preload_libraries` when required by that version. Hybrid search is the verified production default, but installation/upgrade starts with it disabled; a missing or mismatched package keeps it ineffective and the service explicitly enters documented vector-only degraded mode.
 
 ## Core Configuration
 
@@ -72,13 +75,14 @@ CREATE INDEX data_sources_kind_idx ON data_sources (source_kind);
 CREATE INDEX data_sources_context_gin_idx ON data_sources USING GIN (context_metadata);
 ```
 
-`data_source_key` is a stable machine identifier such as `directorist:events`, `directorist:events:reviews`, or `wordpress:post`. Labels may change without changing the key. `parent_data_source_id` links a review source to the listing source for the same directory type. Disabling a WordPress source does not change these rows or its content rows; the persisted backend allowlist excludes it from RAG. Rows are tombstoned only after an explicit deletion request.
+`data_source_key` is a stable machine identifier such as `directorist:events`, `directorist:events:reviews`, or `wordpress:post`. Labels may change without changing the key. `parent_data_source_id` links a review classification to the listing source for the same directory type. Disabling the global Listing Reviews family or an optional WordPress source does not change these rows or its content rows; the persisted backend allowlist excludes the affected keys from RAG. Rows are tombstoned only after an explicit deletion request.
 
 ## Directorist Listings
 
 ```sql
 CREATE TABLE directorist_listings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  search_key BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
   data_source_id UUID NOT NULL REFERENCES data_sources(id),
   source_id TEXT NOT NULL,
   source_url TEXT NOT NULL,
@@ -113,6 +117,7 @@ CREATE TABLE directorist_listings (
   image_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   is_featured BOOLEAN NOT NULL DEFAULT false,
   listing_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  search_document TEXT NOT NULL DEFAULT '',
   source_updated_at TIMESTAMPTZ NULL,
   content_hash TEXT NOT NULL,
   raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -129,6 +134,11 @@ CREATE INDEX directorist_listings_categories_gin_idx ON directorist_listings USI
 CREATE INDEX directorist_listings_locations_gin_idx ON directorist_listings USING GIN (locations);
 CREATE INDEX directorist_listings_metadata_gin_idx ON directorist_listings USING GIN (listing_metadata);
 CREATE INDEX directorist_listings_context_gin_idx ON directorist_listings USING GIN (source_context);
+
+CREATE INDEX directorist_listings_bm25_idx
+ON directorist_listings
+USING bm25 (search_key, search_document)
+WITH (key_field = 'search_key');
 ```
 
 Core Directorist preset fields map to dedicated columns. The canonical core mapping includes title, description/body, tagline, excerpt/summary, price, categories, locations, tags, view count, phone, ZIP/postal code, email, fax, social information, website, address/map coordinates, images, amenities when provided by core, and the featured flag. Every non-core field uses the same generic listing metadata column, whether it was created as a custom field or registered as a preset by an extension.
@@ -153,13 +163,14 @@ Core Directorist preset fields map to dedicated columns. The canonical core mapp
 
 Do not create separate custom-field and third-party-preset namespaces. `provider` is optional descriptive metadata and does not change storage location. Use stable field keys, preserve typed JSON values, and store public file-upload fields as sanitized URLs rather than file bytes. Admin-only/private fields are excluded from `listing_metadata`, `normalized_payload`, and embeddings.
 
-`normalized_payload` is the canonical snapshot used to compute `content_hash` and `embedding_text`. It contains every public content-bearing column plus `listing_metadata`; it excludes `raw_payload` and operational columns. Dynamic metadata that needs frequent structured filtering may receive a migration-managed JSONB expression index without being promoted to a fixed column.
+`normalized_payload` is the canonical snapshot used to compute `content_hash`, `search_document`, and vector `embedding_text`. It contains every public content-bearing column plus `listing_metadata`; it excludes `raw_payload` and operational columns. `search_document` is the deterministic public text searched by ParadeDB BM25. Dynamic metadata that needs frequent structured filtering may receive a migration-managed JSONB expression index without being promoted to a fixed column.
 
 ## Directorist Reviews
 
 ```sql
 CREATE TABLE directorist_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  search_key BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
   data_source_id UUID NOT NULL REFERENCES data_sources(id),
   parent_listing_id UUID NOT NULL REFERENCES directorist_listings(id) ON DELETE CASCADE,
   source_id TEXT NOT NULL,
@@ -171,6 +182,7 @@ CREATE TABLE directorist_reviews (
   categories TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   locations TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   review_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  search_document TEXT NOT NULL DEFAULT '',
   source_updated_at TIMESTAMPTZ NULL,
   content_hash TEXT NOT NULL,
   raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -184,6 +196,11 @@ CREATE INDEX directorist_reviews_data_source_idx ON directorist_reviews (data_so
 CREATE INDEX directorist_reviews_parent_idx ON directorist_reviews (parent_listing_id);
 CREATE INDEX directorist_reviews_status_idx ON directorist_reviews (status);
 CREATE INDEX directorist_reviews_rating_idx ON directorist_reviews (rating_value);
+
+CREATE INDEX directorist_reviews_bm25_idx
+ON directorist_reviews
+USING bm25 (search_key, search_document)
+WITH (key_field = 'search_key');
 ```
 
 ## WordPress Content
@@ -193,6 +210,7 @@ Each enabled non-Directorist post type shares the `wordpress_content` table and 
 ```sql
 CREATE TABLE wordpress_content (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  search_key BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
   data_source_id UUID NOT NULL REFERENCES data_sources(id),
   source_id TEXT NOT NULL,
   wordpress_post_type TEXT NOT NULL,
@@ -203,6 +221,7 @@ CREATE TABLE wordpress_content (
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'draft', 'deleted')),
   taxonomies JSONB NOT NULL DEFAULT '{}'::jsonb,
   post_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  search_document TEXT NOT NULL DEFAULT '',
   source_updated_at TIMESTAMPTZ NULL,
   content_hash TEXT NOT NULL,
   raw_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -217,11 +236,16 @@ CREATE INDEX wordpress_content_post_type_idx ON wordpress_content (wordpress_pos
 CREATE INDEX wordpress_content_status_idx ON wordpress_content (status);
 CREATE INDEX wordpress_content_taxonomies_gin_idx ON wordpress_content USING GIN (taxonomies);
 CREATE INDEX wordpress_content_metadata_gin_idx ON wordpress_content USING GIN (post_metadata);
+
+CREATE INDEX wordpress_content_bm25_idx
+ON wordpress_content
+USING bm25 (search_key, search_document)
+WITH (key_field = 'search_key');
 ```
 
 The application must validate that a `data_source_id` has the matching `source_kind` before writing: `directorist_listing` to `directorist_listings`, `directorist_review` to `directorist_reviews`, and `wordpress_post` to `wordpress_content`.
 
-## Embeddings
+## Embeddings And Hybrid Search
 
 Use a separate embedding table for each content table so every foreign key is enforceable and deletion cascades correctly.
 
@@ -275,9 +299,13 @@ ON wordpress_content_embeddings
 USING ivfflat (embedding vector_cosine_ops);
 ```
 
-RAG queries search only the tables represented by the persisted allowed data-source keys, apply source-specific structured filters, then merge and rank the result sets in the application layer. If the embedding dimension changes, migrate all three embedding tables and re-embed each source kind rather than mutating existing vector columns in place.
+RAG queries search only the tables represented by the persisted allowed data-source keys and apply source-specific structured filters before ranking. For each allowed kind, the application obtains BM25 candidates from the content table's ParadeDB index and vector candidates from its source-specific embedding table. It bounds both sets, fuses their ranks with the configured reciprocal-rank and weight settings, then performs final application ranking.
+
+Do not run the BM25 migration until the `pg_search` package compatibility gate and extension checks pass. The migration must create all three indexes and run `ANALYZE` after bulk indexing. Direct smoke queries using the `|||` operator and `pdb.score(search_key)` must succeed for every populated source kind before `HYBRID_SEARCH_ENABLED=true`. If the package match cannot be proven, the extension or any required index is unavailable, or a smoke query fails, keep hybrid search disabled and report the degraded state. If the embedding dimension changes, migrate all three embedding tables and re-embed each source kind rather than mutating existing vector columns in place.
 
 ## Conversations
+
+Provider selection is runtime configuration and is deliberately absent from the database schema. Conversation, message, tool, and usage records use provider-neutral identifiers and payloads. The application may emit the active provider to ephemeral logs/metrics, but it must not persist an AI-provider discriminator or provider-specific conversation state in application tables.
 
 ```sql
 CREATE TABLE conversations (
@@ -287,7 +315,6 @@ CREATE TABLE conversations (
   channel TEXT NOT NULL DEFAULT 'web' CHECK (channel IN ('web', 'mobile', 'admin_test')),
   title TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
-  openai_conversation_id TEXT NULL,
   langgraph_thread_id TEXT NOT NULL,
   summary TEXT NOT NULL DEFAULT '',
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -303,7 +330,6 @@ CREATE TABLE conversation_messages (
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
   content TEXT NOT NULL,
-  response_id TEXT NULL,
   token_input_count INTEGER NULL,
   token_output_count INTEGER NULL,
   citations JSONB NOT NULL DEFAULT '[]'::jsonb,

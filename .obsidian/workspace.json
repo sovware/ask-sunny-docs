@@ -11,10 +11,14 @@
             "id": "b214d09e537ef6e4",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "type": "markdown",
+              "state": {
+                "file": "server/SERVER_REST_API_CONTRACT.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "SERVER_REST_API_CONTRACT"
             }
           }
         ]
@@ -90,6 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "server/SERVER_REST_API_CONTRACT.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks"
+              "title": "Backlinks for SERVER_REST_API_CONTRACT"
             }
           },
           {
@@ -108,11 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "server/SERVER_REST_API_CONTRACT.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links"
+              "title": "Outgoing links from SERVER_REST_API_CONTRACT"
             }
           },
           {
@@ -150,12 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
+                "file": "server/SERVER_REST_API_CONTRACT.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline"
+              "title": "Outline of SERVER_REST_API_CONTRACT"
             }
           }
         ]
@@ -178,8 +185,13 @@
   },
   "active": "b214d09e537ef6e4",
   "lastOpenFiles": [
+    "server/SERVER_DATABASE_SCHEMA.md",
+    "server/SERVER_APP_ARCHITECTURE.md",
+    "server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md",
+    "server/HYBRID_SEARCH_PLAN.md",
     "task-planning/SERVER_TASK_PLAN.md",
     "task-planning/PLUGIN_TASK_PLAN.md",
+    "README.md",
     "planning/SHARED_AND_RELEASE_TASK_PLAN.md",
     "IMPLEMENTATION_TASK_PLAN.md",
     "task-planning",
@@ -187,10 +199,7 @@
     "plugin/WP_PLUGIN_DATA_SCHEMA.md",
     "shared/SETUP_AND_OPERATIONS.md",
     "shared/DATA_AND_RAG_DESIGN.md",
-    "server/SERVER_APP_ARCHITECTURE.md",
-    "server/SERVER_DATABASE_SCHEMA.md",
     "server/SERVER_REST_API_CONTRACT.md",
-    "README.md",
     "Untitled.base"
   ]
 }

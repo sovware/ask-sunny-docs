@@ -8,7 +8,7 @@ The plugin is responsible for:
 
 - Detecting Directorist and registering WpMVC providers, controllers, routes, and enqueues.
 - Managing settings and backend provisioning.
-- Extracting mandatory Directorist listings and approved listing reviews by directory type, plus content from enabled non-Directorist WordPress post types.
+- Extracting mandatory Directorist listings, approved reviews when the global optional Listing Reviews setting is enabled, and content from enabled non-Directorist WordPress post types.
 - Sending indexing payloads to the backend.
 - Exposing WordPress REST endpoints for the admin SPA and frontend widget.
 - Rendering/enqueuing the chatbot widget on public pages.
@@ -47,6 +47,7 @@ ask-sunny/
     Http/
       Controllers/
         Admin/
+          ChatTestController.php
           DataSourcesController.php
           DiagnosticsController.php
           IndexingController.php
@@ -169,7 +170,7 @@ Route::group(
 Route::get( 'settings', [SettingsController::class, 'show'] );
 Route::post( 'settings', [SettingsController::class, 'update'] );
 Route::get( 'data-sources', [DataSourcesController::class, 'index'] );
-Route::post( 'data-sources/{post_type}', [DataSourcesController::class, 'update'] );
+Route::post( 'data-sources/{key}', [DataSourcesController::class, 'update'] );
 Route::get( 'data-sources/{key}/items', [DataSourcesController::class, 'items'] );
 Route::post( 'data-sources/{key}/delete-indexed-data', [DataSourcesController::class, 'deleteIndexedData'] );
 Route::post( 'provision', [ProvisioningController::class, 'store'] );
@@ -178,6 +179,7 @@ Route::post( 'index/{id}/delete', [IndexingController::class, 'delete'] );
 Route::post( 'reindex', [IndexingController::class, 'reindex'] );
 Route::get( 'index/status', [IndexingController::class, 'status'] );
 Route::get( 'diagnostics', [DiagnosticsController::class, 'show'] );
+Route::post( 'test-chat', [ChatTestController::class, 'create'] );
 ```
 
 ## Asset Layout
@@ -222,23 +224,29 @@ Providers that only show dependency notices may run without Directorist. Directo
 
 ## Admin Dashboard
 
-The admin dashboard lives under a Directorist or WordPress admin menu item. A dedicated **Data Sources** submenu is required. It should include:
+The admin dashboard lives under a Directorist or WordPress admin menu item. Dedicated **Data Sources** and **Test Chat** submenus are required.
+
+The Data Sources submenu should include:
 
 - Connection status.
 - Provisioning status.
-- Widget enable/disable and display rules.
+- Widget enable/disable, page targeting, color scheme, position, and welcome-message settings.
 - Manual reindex controls.
 - A WordPress-owned source registry that controls which records are sent to the backend.
 - Backend allowlist synchronization status and version, with a retry action when WordPress and backend differ.
-- One tab per data source, grouped into **Directorist Listings**, **Listing Reviews**, and **Other Post Types**.
-- Read-only listing and review tabs for every Directorist directory type. These sources are always enabled and cannot be excluded.
+- Exactly two initial tabs: **Listings** and **Listing Reviews**.
+- A **Listings** tab aggregating all Directorist directory types, with filter controls for directory type, WordPress/listing status, category, and location. Listing sources are always enabled and cannot be excluded.
+- A **Listing Reviews** tab aggregating reviews from all directory types, with a directory-type filter. Reviews are controlled by one global optional setting; there are no per-directory enable/disable controls.
 - Enable/disable controls for eligible non-Directorist post types such as posts, pages, and public custom post types.
+- One additional tab for each enabled non-Directorist post type. Each tab provides status, category, and tag filters when those taxonomies are registered for that post type.
 - Source label, description, and context metadata fields for each optional post-type source.
-- Taxonomy-term inclusion filters and allowlisted post-meta filters for optional post-type sources.
-- A paginated item table within each source tab showing every listing, review, or candidate post, including filtered-out items, with title, record type, WordPress status, eligibility, backend index status, RAG retrieval status, last indexed time, and last error. Provide a per-item retry/reindex action when the item is eligible.
+- Status, category, tag, and allowlisted post-meta indexing filters for optional post-type sources, limited to statuses and taxonomies supported by that post type.
+- A paginated item table within each tab showing matching listings, reviews, or posts, including filtered-out items, with title, record type, WordPress status, eligibility, backend index status, RAG retrieval status, last indexed time, and last error. Provide a per-item retry/reindex action when the item is eligible.
 - An explicit **Delete indexed data** action on each item and a destructive **Delete all indexed data** action for each source tab, both protected by confirmation and `manage_options`.
 - Diagnostics.
 - Recent usage summary fetched from backend.
+
+The Test Chat submenu should render the production widget component in an isolated admin preview and send messages through an admin-only WordPress REST route. It displays connection/provider/hybrid-search diagnostics, request correlation ID, latency, answer, citations, recommendations, and sanitized errors. Test conversations use the backend `admin_test` channel and must not bypass the same response validation or source allowlist used by public chat.
 
 ```mermaid
 flowchart TD
@@ -251,11 +259,21 @@ flowchart TD
   Dashboard --> Reindex[Trigger reindex]
   Dashboard --> Diagnostics[Run diagnostics]
   Dashboard --> Sources[Manage and inspect data sources]
+  Dashboard --> TestChat[Test widget and API integration]
 ```
 
 ## Frontend Widget
 
 The frontend widget is rendered by WordPress and talks only to WordPress REST.
+
+Before enqueueing or rendering the global widget, the provider evaluates the saved display rule against the current queried page. Supported launch modes are:
+
+- `all_pages`: render on all public frontend pages.
+- `selected_pages`: render only on selected published WordPress page IDs.
+- `excluded_pages`: render on all public frontend pages except selected page IDs.
+- `shortcode_only`: do not render globally; render only where the shortcode is present.
+
+The admin-configurable appearance includes a color scheme (`light`, `dark`, `auto`, or `custom`), sanitized custom color tokens when `custom` is selected, a screen position (`bottom_right` or `bottom_left`), and a plain-text welcome message. WordPress localizes only sanitized public widget configuration to pages where the widget renders. Secrets and raw admin settings are never localized.
 
 ```mermaid
 sequenceDiagram
@@ -272,7 +290,7 @@ sequenceDiagram
   WP-->>Visitor: Widget payload
 ```
 
-The widget waits for `POST /chat` to complete and renders the returned answer, citations, recommendations, and follow-up questions together. Do not expose an SSE or incremental-response route.
+The widget renders the configured welcome message before the first user turn, waits for `POST /chat` to complete, and renders the returned answer, citations, recommendations, and follow-up questions together. Do not expose an SSE or incremental-response route.
 
 ## Indexing Hooks
 
@@ -282,7 +300,7 @@ Register hooks for:
 - Post status transitions.
 - Post meta changes relevant to Directorist fields.
 - Taxonomy changes for categories, locations, and tags.
-- Directorist review create/update/approve/unapprove/spam/trash/delete, indexed independently from the parent listing.
+- Directorist review create/update/approve/unapprove/spam/trash/delete, processed only when the global Listing Reviews setting is enabled and indexed independently from the parent listing.
 - Publish/update for every enabled optional WordPress post-type source.
 - Taxonomy and allowlisted post-meta changes that can cause an optional item to enter or leave its configured source filter.
 - Trash/delete/unpublish.
@@ -309,7 +327,7 @@ Background queue processing can be deferred for v1. Request-level debouncing and
 `ContentPayloadRepository` and `ContentNormalizer` must:
 
 - Resolve each Directorist listing's directory type into a mandatory `data_source_key`; do not create a separate source kind for events.
-- Resolve each approved Directorist review into the companion review source for its parent listing's directory type, with `source_kind = directorist_review`, a unique comment ID, and an explicit parent listing relationship.
+- When the global Listing Reviews setting is enabled, resolve each approved Directorist review into the classified companion key for its parent listing's directory type, with `source_kind = directorist_review`, a unique comment ID, and an explicit parent listing relationship.
 - Resolve enabled non-Directorist post types into optional `data_source_key` values and evaluate their configured filters before indexing.
 - Emit `source_kind`, `data_source_key`, `data_source_label`, `source_context`, and `wordpress_post_type` with every item.
 - Extract title, excerpt, content, permalink, status, modified time.
@@ -323,7 +341,7 @@ Background queue processing can be deferred for v1. Request-level debouncing and
 
 `DataSourcesController` and the source registry must:
 
-- Discover all Directorist directory types and expose required, enabled listing and companion review sources for each type.
+- Discover all Directorist directory types and expose required enabled listing keys plus classified review keys governed by one global optional Listing Reviews setting.
 - Discover eligible public WordPress post types while excluding the Directorist listing post type and internal WordPress/plugin types.
 - Validate editable context metadata as bounded scalar key/value pairs.
 - Validate taxonomy filters against taxonomies registered to the selected post type and validate selected term IDs.
@@ -333,6 +351,7 @@ Background queue processing can be deferred for v1. Request-level debouncing and
 - Disabling an optional source must not delete its backend records. Stop automatic indexing for that source and atomically synchronize the revised `allowed_data_source_keys` to backend retrieval configuration. Re-enabling it restores the key and queues eligible items for reconciliation.
 - Delete backend data only when an administrator explicitly chooses per-item deletion or **Delete all indexed data**. Deleting all does not disable the source; warn that an enabled source can be indexed again by later updates or reindexing.
 - Synchronize the complete allowlist after provisioning, after Directorist directory-type discovery changes, and after every source enable/disable change. The settings operation succeeds only when the backend persists the new list; on failure, preserve or restore the previous WordPress setting and surface a retryable admin error.
+- When global Listing Reviews is enabled, include every discovered directory review key in the allowlist; when disabled, remove every review key atomically. Do not offer per-directory review enablement.
 - Read listing/post index state from post meta and review index state from comment meta for the per-source item tables.
 
 ## Chat Proxy Responsibilities
@@ -344,7 +363,7 @@ Background queue processing can be deferred for v1. Request-level debouncing and
 - Attach page URL and timezone context.
 - Do not attach source settings or an allowlist to individual chat requests; backend retrieval uses its persisted configuration.
 - Call backend `/chat` server-side and wait for the complete response.
-- Use a WordPress/backend HTTP timeout long enough for complete generation; the recommended default is 60 seconds and must exceed the backend's OpenAI request timeout.
+- Use a WordPress/backend HTTP timeout long enough for complete generation; the recommended default is 60 seconds and must exceed the backend's selected AI-provider request timeout.
 - Sanitize backend responses before returning to the browser.
 - Preserve citation URLs and recommendation card data.
 - Fail gracefully with a user-friendly message.

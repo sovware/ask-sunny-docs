@@ -13,10 +13,19 @@ ask_sunny_settings = [
     'api_key' => 'ask_live_xxxxx',
     'api_key_prefix' => 'ask_live',
     'widget_enabled' => true,
+    'widget_display_mode' => 'all_pages',
+    'widget_page_ids' => [],
     'widget_position' => 'bottom_right',
-    'widget_theme' => 'light',
+    'widget_color_scheme' => 'auto',
+    'widget_custom_colors' => [
+        'primary' => '#2563eb',
+        'surface' => '#ffffff',
+        'text' => '#111827',
+    ],
+    'widget_welcome_message' => 'Hi! How can I help you today?',
     'indexing_enabled' => true,
-    // Directorist listing and review sources are discovered and always indexed.
+    // Directorist listings are required; reviews use one global optional setting.
+    'listing_reviews_enabled' => false,
     'wordpress_post_type_sources' => [
         'post' => [
             'enabled' => true,
@@ -27,10 +36,15 @@ ask_sunny_settings = [
                 'audience' => 'public',
             ],
             'filters' => [
+                'statuses' => ['publish'],
                 'taxonomies' => [
                     'category' => [
                         'operator' => 'IN',
                         'term_ids' => [12, 18],
+                    ],
+                    'post_tag' => [
+                        'operator' => 'IN',
+                        'term_ids' => [7, 9],
                     ],
                 ],
                 'meta' => [],
@@ -42,6 +56,7 @@ ask_sunny_settings = [
             'description' => '',
             'context_metadata' => [],
             'filters' => [
+                'statuses' => ['publish'],
                 'taxonomies' => [],
                 'meta' => [],
             ],
@@ -77,9 +92,13 @@ Secrets:
 - `api_key` must never be returned by frontend REST endpoints.
 - Provisioning key should come from a server constant/env, not a browser-visible setting.
 
-`wordpress_post_type_sources` stores configuration only for non-Directorist post types. The settings API must reject an attempt to add the Directorist listing post type here or disable a discovered Directorist directory type. Only public, readable post types should be offered. Internal types such as revisions, navigation items, attachment internals, and plugin storage records must not be indexable.
+`widget_display_mode` accepts `all_pages`, `selected_pages`, `excluded_pages`, or `shortcode_only`. `widget_page_ids` contains unique published WordPress page IDs and is used by the selected/excluded modes. `widget_color_scheme` accepts `light`, `dark`, `auto`, or `custom`; custom colors must be sanitized CSS colors and pass the admin contrast check. `widget_position` accepts `bottom_right` or `bottom_left`. The welcome message is plain text with a documented length limit and no executable markup.
 
-Taxonomy filters use term IDs for stability and are evaluated before queuing an item. `IN` means at least one selected term must match; `AND` means all selected terms must match. Post-meta filters are limited to keys and comparison operators explicitly allowlisted by the plugin. Changing a source filter must tombstone items that no longer match and enqueue newly eligible items.
+`listing_reviews_enabled` is the only review enablement control. The plugin still derives a stable review key for each directory type so backend records retain correct classification, but administrators do not enable or disable review keys individually. Enabling reviews adds every discovered review key to the backend allowlist and reconciles approved reviews. Disabling reviews removes every review key atomically and stops automatic review indexing without deleting retained backend rows.
+
+`wordpress_post_type_sources` stores configuration only for non-Directorist post types. The settings API must reject an attempt to add the Directorist listing post type here or disable a discovered Directorist listing source. Only public, readable post types should be offered. Internal types such as revisions, navigation items, attachment internals, and plugin storage records must not be indexable.
+
+Post-type status filters use an allowlist of public/queryable statuses and default to `publish`. Category and tag filters use stable term IDs when the selected post type registers those taxonomies. `IN` means at least one selected term must match; `AND` means all selected terms must match. Post-meta filters are limited to keys and comparison operators explicitly allowlisted by the plugin. Changing a source filter must tombstone items that no longer match and enqueue newly eligible items.
 
 ## Post Meta
 
@@ -192,8 +211,8 @@ The plugin derives and stores the local registry whenever Directorist directory 
         'directory_type_id' => 42,
         'directory_type_slug' => 'events',
         'parent_data_source_key' => 'directorist:events',
-        'required' => true,
-        'enabled' => true,
+        'required' => false,
+        'enabled' => $settings['listing_reviews_enabled'],
         'context_metadata' => [
             'content_kind' => 'review',
             'reviewed_content_kind' => 'event',
@@ -227,11 +246,48 @@ The plugin derives and stores the local registry whenever Directorist directory 
 
 `data_source_key` is a stable machine key, not the editable label. If a Directorist directory type is renamed, its key should continue to use a stable directory type ID or immutable slug mapping. A directory type removed from Directorist should be marked inactive and its backend items tombstoned.
 
+For each directory type, the listing registry entry is required and enabled. Its review registry entry is classified independently but derives `enabled` from the one global `listing_reviews_enabled` setting. When reviews are enabled, all discovered review keys appear in `allowed_data_source_keys`; when disabled, none do.
+
 `required`, `enabled`, and `filters` remain WordPress-owned configuration. WordPress derives the complete `allowed_data_source_keys` array from these settings and persists that derived list in the backend through `PUT /retrieval/allowed-data-sources`. Content payloads include only the selected source's identity, label, and RAG context metadata. Disabling an optional source preserves its backend items, stops automatic indexing, synchronizes an allowlist without its key, and leaves the local index status unchanged. Enabling it adds the key back and triggers reconciliation for locally eligible items.
 
 `allowed_data_sources_version` stores the last backend version used for optimistic concurrency. `allowed_data_sources_synced_at` supports diagnostics. A source-setting change must not report success until the backend allowlist update succeeds; if it fails, retain the previous local setting and show an actionable error.
 
 Disabling a source never triggers backend deletion. The admin may explicitly delete one item or use **Delete all indexed data** for a source; those actions set the affected local index states to `deleted` without changing the source's `enabled` setting. Normal content lifecycle reconciliation may still tombstone an item that is deleted, unpublished, unapproved, or no longer matches its configured indexing filter.
+
+## Data Sources Tab Query Model
+
+The Data Sources submenu is a UI aggregation over the registry, not a one-tab-per-key view:
+
+```php
+[
+    'listings' => [
+        'data_source_keys' => $all_directorist_listing_keys,
+        'filters' => [
+            'directory_type_ids' => [],
+            'statuses' => [],
+            'category_ids' => [],
+            'location_ids' => [],
+        ],
+    ],
+    'listing-reviews' => [
+        'data_source_keys' => $all_directorist_review_keys,
+        'enabled' => $settings['listing_reviews_enabled'],
+        'filters' => [
+            'directory_type_ids' => [],
+        ],
+    ],
+    'wordpress:post' => [
+        'visible' => $settings['wordpress_post_type_sources']['post']['enabled'],
+        'filters' => [
+            'statuses' => [],
+            'category_ids' => [],
+            'tag_ids' => [],
+        ],
+    ],
+]
+```
+
+The first two tabs always render. Enabled posts, pages, and custom post types each add their own tab. Category and tag controls appear only when the corresponding taxonomy is registered to that post type. UI filters affect the item query and do not mutate indexing configuration unless the administrator explicitly saves source filters in settings.
 
 ## Content Mapping
 
@@ -373,4 +429,4 @@ ask_sunny_recent_conversation_id
 ask_sunny_widget_open
 ```
 
-Do not store backend API keys, OpenAI keys, raw admin settings, or private user profile data in browser storage.
+Do not store backend API keys, OpenAI or Groq keys, embedding-provider keys, raw admin settings, or private user profile data in browser storage.

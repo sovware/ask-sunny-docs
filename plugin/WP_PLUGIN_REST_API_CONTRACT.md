@@ -37,7 +37,17 @@ Response:
   "api_key_configured": true,
   "api_key_prefix": "ask_live",
   "widget_enabled": true,
+  "widget_display_mode": "selected_pages",
+  "widget_page_ids": [12, 34],
   "widget_position": "bottom_right",
+  "widget_color_scheme": "custom",
+  "widget_custom_colors": {
+    "primary": "#2563eb",
+    "surface": "#ffffff",
+    "text": "#111827"
+  },
+  "widget_welcome_message": "Hi! What would you like to find?",
+  "listing_reviews_enabled": false,
   "indexing_enabled": true,
   "debug_logging": false
 }
@@ -53,7 +63,17 @@ Request:
 {
   "enabled": true,
   "widget_enabled": true,
+  "widget_display_mode": "selected_pages",
+  "widget_page_ids": [12, 34],
   "widget_position": "bottom_right",
+  "widget_color_scheme": "custom",
+  "widget_custom_colors": {
+    "primary": "#2563eb",
+    "surface": "#ffffff",
+    "text": "#111827"
+  },
+  "widget_welcome_message": "Hi! What would you like to find?",
+  "listing_reviews_enabled": true,
   "indexing_enabled": true,
   "request_timeout": 60,
   "debug_logging": false
@@ -69,79 +89,71 @@ Response:
 }
 ```
 
-Data-source configuration is managed through the dedicated routes below, not through generic settings fields. This prevents a client from disabling required Directorist sources.
+Optional WordPress post-type configuration is managed through the dedicated routes below. Global Listing Reviews enablement is the single `listing_reviews_enabled` setting; there are no per-directory review toggles. Required Directorist listing sources cannot be disabled. Widget page IDs must identify published pages; modes, positions, schemes, colors, and welcome messages use strict allowlists, CSS-color sanitization, plain-text sanitization, and documented length limits.
+
+Changing `listing_reviews_enabled` atomically synchronizes all discovered `directorist:*:reviews` keys. Enabling it queues approved reviews across every directory type; disabling it stops review hooks and removes all review keys from retrieval without deleting retained backend rows. If allowlist synchronization fails, preserve the previous setting and return an actionable error.
 
 ### `GET /data-sources`
 
-Returns all discovered sources for the Data Sources submenu. Every Directorist directory type produces a required listing source and a required companion review source. Eligible non-Directorist WordPress post types are returned even when disabled so an administrator can opt in.
+Returns the Data Sources submenu model. The first two tabs are always **Listings** and **Listing Reviews**. Each enabled non-Directorist post type adds its own tab. Directory-specific keys remain internal registry classifications and do not produce per-directory tabs or review toggles.
 
 ```json
 {
-  "groups": [
+  "tabs": [
     {
-      "key": "directorist",
-      "label": "Directorist Listings",
-      "sources": [
-        {
-          "data_source_key": "directorist:events",
-          "source_kind": "directorist_listing",
-          "label": "Event Directory",
-          "wp_post_type": "at_biz_dir",
-          "directory_type_id": "42",
-          "required": true,
-          "enabled": true,
-          "context_metadata": {"content_kind": "event"},
-          "counts": {"eligible": 80, "indexed": 77, "pending": 2, "failed": 1}
-        }
-      ]
+      "key": "listings",
+      "label": "Listings",
+      "source_kind": "directorist_listing",
+      "enabled": true,
+      "filters": {
+        "directory_types": [{"id": "42", "label": "Event Directory"}],
+        "statuses": ["publish", "pending", "draft", "trash"],
+        "categories": [{"id": 12, "label": "Workshops"}],
+        "locations": [{"id": 8, "label": "Downtown"}]
+      },
+      "counts": {"eligible": 250, "indexed": 247, "pending": 2, "failed": 1}
     },
     {
-      "key": "directorist_reviews",
+      "key": "listing-reviews",
       "label": "Listing Reviews",
-      "sources": [
-        {
-          "data_source_key": "directorist:events:reviews",
-          "source_kind": "directorist_review",
-          "label": "Event Directory Reviews",
-          "wp_post_type": "at_biz_dir",
-          "directory_type_id": "42",
-          "parent_data_source_key": "directorist:events",
-          "required": true,
-          "enabled": true,
-          "context_metadata": {"content_kind": "review", "reviewed_content_kind": "event"},
-          "counts": {"eligible": 125, "indexed": 124, "pending": 0, "failed": 1}
-        }
-      ]
+      "source_kind": "directorist_review",
+      "enabled": false,
+      "filters": {
+        "directory_types": [{"id": "42", "label": "Event Directory"}]
+      },
+      "counts": {"eligible": 125, "indexed": 0, "pending": 0, "failed": 0}
     },
     {
-      "key": "wordpress",
-      "label": "Other Post Types",
-      "sources": [
-        {
-          "data_source_key": "wordpress:post",
-          "source_kind": "wordpress_post",
-          "label": "Blog",
-          "wp_post_type": "post",
-          "required": false,
-          "enabled": true,
-          "context_metadata": {"content_kind": "article", "audience": "public"},
-          "filters": {
-            "taxonomies": {
-              "category": {"operator": "IN", "term_ids": [12, 18]}
-            },
-            "meta": []
-          },
-          "counts": {"eligible": 35, "indexed": 35, "pending": 0, "failed": 0}
+      "key": "wordpress:post",
+      "label": "Posts",
+      "source_kind": "wordpress_post",
+      "enabled": true,
+      "filters": {
+        "statuses": ["publish", "draft", "pending", "private", "trash"],
+        "categories": [{"id": 12, "label": "Guides"}],
+        "tags": [{"id": 7, "label": "Planning"}]
+      },
+      "saved_indexing_filters": {
+        "statuses": ["publish"],
+        "taxonomies": {
+          "category": {"operator": "IN", "term_ids": [12]},
+          "post_tag": {"operator": "IN", "term_ids": [7]}
         }
-      ]
+      },
+      "counts": {"eligible": 35, "indexed": 35, "pending": 0, "failed": 0}
     }
+  ],
+  "available_post_types": [
+    {"post_type": "post", "label": "Posts", "enabled": true},
+    {"post_type": "page", "label": "Pages", "enabled": false},
+    {"post_type": "faq", "label": "FAQs", "enabled": false}
   ]
 }
 ```
 
-### `POST /data-sources/:post_type`
+### `POST /data-sources/:key`
 
-Enables, disables, or updates an optional non-Directorist post-type source. Reject Directorist post types, internal post types, invalid taxonomy terms, and non-allowlisted meta filters.
+Enables, disables, or updates an optional non-Directorist post-type source. Reject Directorist listing and review keys, internal post types, invalid statuses/taxonomy terms, and non-allowlisted meta filters. Global Listing Reviews enablement is updated through `POST /settings`; no endpoint enables or disables reviews per directory type.
 
 ```json
 {
@@ -153,8 +165,10 @@ Enables, disables, or updates an optional non-Directorist post-type source. Reje
     "audience": "public"
   },
   "filters": {
+    "statuses": ["publish"],
     "taxonomies": {
-      "category": {"operator": "IN", "term_ids": [12, 18]}
+      "category": {"operator": "IN", "term_ids": [12, 18]},
+      "post_tag": {"operator": "IN", "term_ids": [7, 9]}
     },
     "meta": []
   }
@@ -197,13 +211,20 @@ If the backend allowlist update fails or returns a version conflict, return an e
 
 ### `GET /data-sources/:key/items`
 
-Returns the paginated item table for one source tab. The response includes eligible, ineligible, and not-yet-indexed listings, reviews, or posts so every data item has a visible state. Query parameters include `page`, `per_page`, `search`, and optional `index_status`.
+Returns the paginated item table for one tab. All tabs support `page`, `per_page`, `search`, and optional `index_status`.
+
+- `listings` supports `directory_type_ids[]`, `statuses[]`, `category_ids[]`, and `location_ids[]`.
+- `listing-reviews` supports `directory_type_ids[]`.
+- Each enabled `wordpress:{post_type}` tab supports `statuses[]`, `category_ids[]`, and `tag_ids[]` when those taxonomies exist.
+
+The response includes eligible, ineligible, and not-yet-indexed records. Aggregated Directorist tabs return each item's concrete `data_source_key` for indexing actions.
 
 ```json
 {
-  "data_source_key": "directorist:events:reviews",
+  "tab_key": "listing-reviews",
   "items": [
     {
+      "data_source_key": "directorist:events:reviews",
       "record_id": 845,
       "record_type": "comment",
       "title": "Review for Community Workshop",
@@ -308,7 +329,7 @@ Request:
 
 ```json
 {
-  "data_source_keys": ["directorist:events", "directorist:events:reviews", "directorist:businesses", "directorist:businesses:reviews", "wordpress:post"],
+  "data_source_keys": ["directorist:events", "directorist:events:reviews", "directorist:businesses", "wordpress:post"],
   "force": false,
   "batch_size": 25
 }
@@ -352,16 +373,57 @@ Checks WordPress-side and backend health.
   "backend": {
     "ok": true,
     "database": "ok",
-    "openai": "configured",
+    "ai_provider": "groq",
+    "ai_provider_configured": true,
+    "embedding_provider": "openai",
+    "hybrid_search": "enabled",
+    "paradedb": "ok",
     "allowed_data_sources_version": 6,
     "allowed_data_sources_in_sync": true
   },
   "indexable_counts": {
     "directorist:businesses": 250,
-    "directorist:businesses:reviews": 410,
     "directorist:events": 80,
     "directorist:events:reviews": 125,
     "wordpress:post": 35
+  }
+}
+```
+
+### `POST /test-chat`
+
+Runs an admin-only chat turn through the same WordPress-to-backend integration used by the public widget. The plugin adds `channel = admin_test`, generates a correlation ID, applies the persisted backend allowlist, and validates/sanitizes the complete response. This endpoint does not accept provider, model, API key, tool, or source-override fields.
+
+Request:
+
+```json
+{
+  "conversation_id": "optional-admin-test-uuid",
+  "message": "Find an accessible listing downtown.",
+  "page_url": "https://example.com/sample-page"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "channel": "admin_test",
+  "correlation_id": "req_uuid",
+  "latency_ms": 1420,
+  "integration": {
+    "backend": "ok",
+    "hybrid_search": "enabled",
+    "retrieval_config_in_sync": true
+  },
+  "chat": {
+    "conversation_id": "uuid",
+    "message_id": "uuid",
+    "answer": "Here are a few matching listings...",
+    "recommendations": [],
+    "citations": [],
+    "follow_up_questions": []
   }
 }
 ```
@@ -400,7 +462,7 @@ WordPress does not attach source settings to the chat request. The backend loads
 
 ## Permission Model
 
-- `GET /settings`, `POST /settings`, `POST /provision`, `POST /index/:id`, `POST /index/:id/delete`, `POST /data-sources/:key/delete-indexed-data`, `POST /reindex`, `GET /index/status`, and `GET /diagnostics`: `current_user_can('manage_options')`.
+- `GET /settings`, `POST /settings`, `GET /data-sources`, `POST /data-sources/:key`, `GET /data-sources/:key/items`, `POST /provision`, `POST /index/:id`, `POST /index/:id/delete`, `POST /data-sources/:key/delete-indexed-data`, `POST /reindex`, `GET /index/status`, `GET /diagnostics`, and `POST /test-chat`: `current_user_can('manage_options')`.
 - `POST /chat`: public when the widget is enabled, rate limited by IP/session, and sanitized.
 
 ## Frontend Flow
