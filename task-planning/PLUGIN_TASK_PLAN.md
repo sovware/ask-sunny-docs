@@ -14,7 +14,7 @@ Every story uses the standard format:
 
 Acceptance criteria use Given–When–Then statements. A story is complete only when all acceptance criteria pass and every required task is checked off.
 
-## Global Definition of Done
+## Definition of Done
 
 - All story acceptance criteria pass in automated or documented acceptance tests.
 - PHP and JavaScript code is reviewed, formatted, linted, statically analyzed, and covered by appropriate unit, integration, REST, and browser tests.
