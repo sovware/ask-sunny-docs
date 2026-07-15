@@ -171,6 +171,7 @@ Each recommendation card contains:
   "reason": "Matches the requested date, location, and category.",
   "is_featured": false,
   "disclosures": [],
+  "volatile_details": [],
   "uncertainties": [],
   "ranking": {
     "policy_version": "ask-sunny-ranking-v1",
@@ -206,8 +207,9 @@ facts.
 ## 7. Uncertainty
 
 The caller may request any of `date`, `availability`, and `operating_hours` for each candidate. The
-ranker emits a confirmed volatile detail only when the candidate contains a non-empty public value
-and a valid `observed_at` timestamp. Date values must be valid timestamps or bounded date ranges.
+ranker emits a `volatile_details` member with exactly `field`, `status="confirmed"`, `value`, and
+`observed_at` only when the candidate contains a non-empty public value and a valid observation
+timestamp. Date values must be valid timestamps or bounded date ranges.
 Availability evidence older than 24 hours and operating-hours evidence older than 30 days is stale;
 future timestamps are invalid.
 
