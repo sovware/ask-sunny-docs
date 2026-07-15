@@ -404,6 +404,8 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 ### SV-US-013 — Deploy and recover the production service
 
+**Normative contract:** [`PRODUCTION_RELEASE_CONTRACT.md`](PRODUCTION_RELEASE_CONTRACT.md)
+
 **User story**
 
 > As a **server operator**, I want a secure, observable, and recoverable deployment process, so that the API can be released and restored with predictable risk.

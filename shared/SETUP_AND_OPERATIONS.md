@@ -363,6 +363,10 @@ installation credential. Do not place either secret in command history, tickets,
 
 ## Production Readiness Checklist
 
+The executable rehearsal, exact launch workload/thresholds, resilience/security approval, and
+secret-free final report follow
+[`PRODUCTION_RELEASE_CONTRACT.md`](../server/PRODUCTION_RELEASE_CONTRACT.md).
+
 - The selected native or Docker deployment exposes only the HTTPS reverse proxy; Docker images are pinned when Docker is used.
 - The final report records the running PostgreSQL major, execution OS/release, CPU architecture, `pg_search` package/extension version, Docker image digest when applicable, and a passing exact-match compatibility decision.
 - ParadeDB, `pg_search`, and pgvector are installed and compatible; any missing or mismatched evidence keeps hybrid disabled.
