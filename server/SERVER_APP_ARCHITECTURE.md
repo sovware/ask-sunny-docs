@@ -110,7 +110,7 @@ The example connection URLs target native services. Docker Compose overrides the
 
 Retrieval configuration bounds are enforced at startup: weights are `0..1` with a positive combined
 weight, RRF K is `1..10000`, the candidate multiplier is `1..20`, the candidate cap is `1..1000`,
-minimum vector similarity is `0..1`, and the result cap is `1..100`. Runtime normalizes the two
+the BM25 score-key cap is `1..10000`, minimum vector similarity is `0..1`, and the result cap is `1..100`. Runtime normalizes the two
 weights by their sum before fusion.
 
 ## High-Level Server Flow

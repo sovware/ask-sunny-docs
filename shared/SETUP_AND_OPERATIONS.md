@@ -119,6 +119,8 @@ MAX_METADATA_NESTING_DEPTH=4
 The minimum similarity accepts `0..1`; the result limit defaults to `12` and accepts `1..100`.
 Weights accept `0..1`, require a positive combined value, and are normalized at runtime. Keep the RRF
 K, candidate multiplier, and candidate cap within `1..10000`, `1..20`, and `1..1000` respectively.
+`MAX_ALLOWED_SEARCH_IDS` defaults to `1000` and accepts `1..10000`; it bounds ParadeDB's simple
+score-key stage before the mandatory allowlist/structured hydration query.
 
 Environment safety rules:
 
