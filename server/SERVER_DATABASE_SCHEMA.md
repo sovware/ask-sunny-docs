@@ -418,6 +418,12 @@ CREATE TABLE conversation_tool_calls (
 );
 ```
 
+SV-US-010 adds `conversations.deleted_at/anonymized_at`, the first-class
+`conversation_turns` table, and nullable `turn_id` foreign keys on messages, tool calls, and usage
+events. The exact migration, constraints, indexes, atomic completion behavior, JSON bounds, and
+scrubbing lifecycle are normative in
+[`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md).
+
 ## Personalization
 
 ```sql
@@ -533,3 +539,7 @@ CREATE TABLE langgraph_checkpoints (
 - User profile deletion should remove or anonymize `user_profiles`, `user_favorites`, and conversation user references.
 - Usage analytics may be retained longer after removing direct user identifiers.
 - Store email hashes instead of raw email when the backend only needs stable identity matching.
+
+Launch retention defaults to 90 days for inactive conversation data and a 30-day hard-delete grace
+after immediate ownership removal and content scrubbing. The bounded retry-safe sweep and explicit
+external-user anonymization behavior are defined in the conversation context contract.

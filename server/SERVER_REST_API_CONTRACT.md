@@ -551,7 +551,11 @@ Response:
 
 ### `GET /conversations/:id`
 
-Returns conversation history for an authenticated caller.
+Returns bounded recent history for the exact conversation owner. Requires an active installation
+credential with `conversations:read` plus exactly one of
+`X-Ask-Sunny-External-User-ID` or `X-Ask-Sunny-Anonymous-Session-ID`. Identity validation,
+non-disclosing lookup, history bounds, and privacy behavior follow
+[`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md).
 
 Response:
 
@@ -560,16 +564,32 @@ Response:
   "conversation": {
     "id": "uuid",
     "title": "Saturday plans",
-    "status": "active"
+    "status": "active",
+    "summary": "The visitor wants a downtown activity this Saturday.",
+    "created_at": "2026-07-06T12:00:00Z",
+    "updated_at": "2026-07-06T12:05:00Z"
   },
   "messages": [
     {
       "id": "uuid",
       "role": "user",
       "content": "What can we do this Saturday?",
+      "citations": [],
       "created_at": "2026-07-06T12:00:00Z"
     }
-  ]
+  ],
+  "history_truncated": false
+}
+```
+
+Missing, mismatched, deleted, and malformed conversation IDs share:
+
+```json
+{
+  "error": {
+    "code": "conversation_not_found",
+    "message": "The conversation was not found."
+  }
 }
 ```
 
