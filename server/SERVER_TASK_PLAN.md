@@ -334,6 +334,8 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 ### SV-US-011 — Receive a complete grounded chat response
 
+**Normative contract:** [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md)
+
 **User story**
 
 > As a **site visitor**, I want one complete answer grounded in the site's approved content, so that I receive trustworthy guidance without partial or unsupported output.

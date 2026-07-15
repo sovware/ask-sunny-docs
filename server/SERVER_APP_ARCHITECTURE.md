@@ -131,6 +131,9 @@ flowchart TD
 
 ## LangGraph Chat Architecture
 
+The exact SV-US-011 graph, provider adapter, tool, grounding, and failure boundaries are normative
+in [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md).
+
 LangGraph owns the orchestration of a chat turn. Each graph run receives a durable `conversation_id`, the new user message, optional visitor/user context, and request metadata. Graph state contains the active user request, conversation summary, retrieved candidates, tool results, citations, response draft, and moderation/status metadata.
 
 Recommended graph nodes:

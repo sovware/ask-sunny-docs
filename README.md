@@ -13,6 +13,7 @@ This documentation follows these requirements and architectural patterns:
 - ParadeDB self-hosted extension documentation: https://docs.paradedb.com/deploy/self-hosted/extension
 - LangGraph JavaScript documentation: https://docs.langchain.com/oss/javascript/langgraph/overview
 - LangGraph persistence documentation: https://docs.langchain.com/oss/python/langgraph/persistence
+- Grounded chat implementation contract: [`server/GROUNDED_CHAT_CONTRACT.md`](server/GROUNDED_CHAT_CONTRACT.md)
 
 ## Product Requirements
 
