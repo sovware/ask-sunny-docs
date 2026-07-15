@@ -78,6 +78,7 @@ HYBRID_BM25_WEIGHT=0.35
 HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
+MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 ```
 
 The hybrid flag begins `false` for installation or upgrade. It changes to `true` only after the `pg_search` package is proven compatible with the running PostgreSQL major version, execution OS, and architecture and all verification checks pass. The exact gate is defined in [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md).
@@ -123,6 +124,12 @@ The source-kind repositories remain separate:
 `data_sources` stores source labels and retrieval context. `installation_config.allowed_data_source_keys` stores the authoritative retrieval allowlist. Disabling an optional source removes its key from that list but does not delete indexed rows. An explicit delete operation tombstones content.
 
 Every retrieval begins by loading the stored allowlist. Model-selected or request-derived keys are intersected with it; neither a chat caller nor a model can expand it. A missing or empty allowlist fails closed with no candidates.
+
+The application exposes one fail-closed retrieval-policy accessor. It canonicalizes requested keys,
+loads one versioned snapshot, intersects the two sets, and supplies only scoped keys to structured,
+BM25, vector, detail, and model-tool delegates. A delegate is not invoked when the scoped set is
+empty. Returned records are checked against the same scoped set before leaving the boundary so a
+misconfigured or malicious delegate cannot reintroduce a disabled retained row.
 
 ## 6. Content Normalization And Embedding
 
@@ -260,6 +267,7 @@ The model receives compact server-owned tool results, never database credentials
 Primary semantic-search routes are:
 
 - `PUT /retrieval/allowed-data-sources`: atomically replace the persisted source allowlist with optimistic version checking.
+- `GET /retrieval/allowed-data-sources`: return the installation-facing reconciliation/diagnostic snapshot.
 - `POST /content/upsert`: normalize and index one source record.
 - `POST /content/bulk-upsert`: index a bounded mixed-source batch with per-item results.
 - `POST /content/delete`: tombstone one source record.

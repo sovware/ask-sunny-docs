@@ -101,6 +101,7 @@ HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 MAX_ALLOWED_SEARCH_IDS=1000
+MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 ```
 
 `AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.
@@ -341,6 +342,7 @@ installation credential. Do not place either secret in command history, tickets,
 - Global reviews and optional WordPress sources honor enabled state and filters.
 - Disabled optional sources remain stored but never appear in RAG results.
 - WordPress and backend allowlist versions match; an empty or missing backend allowlist fails closed.
+- The installation-authenticated retrieval-configuration diagnostic reports the expected canonical keys, version, and update time; stale writers reload before retrying.
 - Per-item and per-source delete actions require explicit confirmation.
 - Per-item indexing status and failures are visible in WordPress admin.
 - Chat works for anonymous and logged-in visitors and returns one complete response with citations and recommendations.

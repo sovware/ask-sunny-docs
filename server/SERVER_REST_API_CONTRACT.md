@@ -119,6 +119,8 @@ same `401 authentication_error`. An authenticated key missing a route's required
 
 Persists the complete allowlist computed by the WordPress plugin. This replaces the previous list atomically; it does not delete content. The installation key may update the allowlist for its installation.
 
+Requires the `retrieval:write` installation-key scope.
+
 Request:
 
 ```json
@@ -152,6 +154,54 @@ Response:
 ```
 
 Duplicate keys are removed and the stored order is canonicalized. `expected_version` prevents an older admin request from overwriting newer configuration; a mismatch returns `409 retrieval_config_conflict`. An empty list is stored as an empty list and makes retrieval fail closed with no candidates.
+
+Each input key is trimmed and lowercased, then must match one of
+`directorist:<slug>`, `directorist:<slug>:reviews`, or `wordpress:<post-type>`. The `<slug>` and
+`<post-type>` segments match `[a-z0-9][a-z0-9_-]{0,63}`. Duplicate canonical keys are removed and the
+result is stored in ascending bytewise order. The array may contain at most
+`MAX_ALLOWED_DATA_SOURCE_KEYS` entries, default `1000`. Shape validation does not require an existing
+`data_sources` row because the initial allowlist may be synchronized before content arrives.
+
+`expected_version` is a non-negative safe integer. A successful request, including a no-op list,
+increments the stored version by exactly one and sets `updated_at` from the database clock. The
+conditional replacement and increment occur in one statement. A stale or concurrently losing
+request receives:
+
+```json
+{
+  "error": {
+    "code": "retrieval_config_conflict",
+    "message": "The retrieval configuration changed; reload it before retrying."
+  }
+}
+```
+
+The conflict response does not include the current list. The caller reloads it through the
+diagnostic route below; the service never retries a stale write automatically.
+
+### `GET /retrieval/allowed-data-sources`
+
+Returns the authoritative snapshot for WordPress reconciliation and diagnostics. Requires the
+`retrieval:write` installation-key scope.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "allowed_data_source_keys": [
+    "directorist:businesses",
+    "directorist:businesses:reviews",
+    "wordpress:post"
+  ],
+  "version": 5,
+  "updated_at": "2026-07-13T10:30:00Z"
+}
+```
+
+Before the first sync, the response contains an empty list, version `0`, and `updated_at: null`.
+This route is the narrow installation-facing diagnostic surface; it does not weaken the separate
+admin-authentication requirement for `GET /admin/diagnostics`.
 
 The list uses concrete `data_source_key` classifications rather than broad `source_kind` values. For example, `directorist:events` and `directorist:events:reviews` can be allowed independently even though both are Directorist data.
 

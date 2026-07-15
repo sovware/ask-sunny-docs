@@ -68,6 +68,7 @@ HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 MAX_ALLOWED_SEARCH_IDS=1000
+MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 
 REDIS_ENABLED=false
 REDIS_URL=redis://127.0.0.1:6379
@@ -192,6 +193,12 @@ WordPress owns the source registry, enable/disable controls, and indexing filter
 WordPress owns the source settings UI and computes the complete allowlist. After provisioning and whenever source enablement changes, WordPress atomically synchronizes `allowed_data_source_keys` to backend installation configuration. The backend stores and enforces that list across structured filtering, BM25 retrieval, vector retrieval, detail lookup, and model tools. Disabling a source updates the allowlist without deleting indexed content. Deletion occurs only when WordPress sends an explicit per-item deletion or bulk delete-by-data-source request initiated by an administrator or maintenance workflow.
 
 If the allowlist is empty or unavailable, retrieval fails closed and returns no candidates. Chat input cannot override the stored list.
+
+One application policy accessor owns allowlist loading and intersection. Structured, BM25, vector,
+detail, and model-tool boundaries accept the accessor's scoped result rather than trusting raw caller
+or model keys. The installation-authenticated retrieval-configuration read route exposes the current
+canonical keys, version, and update time for WordPress reconciliation and diagnostics; the broader
+admin diagnostics route remains admin-authenticated.
 
 ```mermaid
 flowchart TD
