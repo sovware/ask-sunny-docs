@@ -324,3 +324,7 @@ The hybrid phase is complete when:
 - Health reports the requested and effective search modes accurately.
 - The evaluation set meets agreed relevance and latency thresholds.
 - Backup, rollback, vector-only fallback, and final deployment reporting are rehearsed.
+
+The exact production-like workload, latency/resource thresholds, recovery smokes, resilience and
+security approval, and secret-free final-report fields are fixed in
+[`PRODUCTION_RELEASE_CONTRACT.md`](PRODUCTION_RELEASE_CONTRACT.md).

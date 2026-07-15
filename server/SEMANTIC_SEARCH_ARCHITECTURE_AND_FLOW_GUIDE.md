@@ -474,3 +474,7 @@ Diagnostics must report requested/effective hybrid mode, PostgreSQL version, `pg
 - Native and Docker deployments both pass the `pg_search` package compatibility gate.
 - A mismatch or missing extension keeps hybrid disabled and vector-only diagnostics honest.
 - Backup, migration, restore, reindex, and cache invalidation procedures are rehearsed.
+
+SV-US-013 applies the deterministic capacity thresholds, failure matrix, recovery smokes, and final
+release-report contract in
+[`PRODUCTION_RELEASE_CONTRACT.md`](PRODUCTION_RELEASE_CONTRACT.md) to these semantic-search surfaces.
