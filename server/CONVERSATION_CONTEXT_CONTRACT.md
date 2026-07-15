@@ -52,8 +52,11 @@ identity, `channel`, and a validated application `correlation_id`. In one transa
 `CONVERSATION_SUMMARY_MAX_CHARS` defaults to `4000` and accepts `100..20000`. The summary is
 provider-neutral application text. A summary update longer than the configured bound is rejected;
 it is never silently truncated. Recent messages include `user`, `assistant`, `system`, and `tool`
-roles, citations, safe metadata, and creation time. The query selects newest `limit + 1`, reports
-truncation, retains only `limit`, then returns them oldest-first.
+roles, citations, safe metadata, and creation time. A non-negative `sequence_number` preserves the
+caller's message order within a turn because PostgreSQL transaction timestamps are identical for
+rows completed together. The query selects newest `limit + 1` by
+`(created_at, sequence_number, id)`, reports truncation, retains only `limit`, then returns them
+oldest-first by the same tuple.
 
 Retrying `beginTurn` with the same owned conversation and correlation ID returns the existing
 processing turn and the same context rather than creating a duplicate. A completed correlation ID
@@ -86,23 +89,30 @@ CREATE TABLE conversation_turns (
 );
 
 ALTER TABLE conversation_messages
-  ADD COLUMN turn_id UUID NULL REFERENCES conversation_turns(id) ON DELETE SET NULL;
+  ADD COLUMN turn_id UUID NULL REFERENCES conversation_turns(id) ON DELETE SET NULL,
+  ADD COLUMN sequence_number INTEGER NULL;
+-- Backfill existing rows deterministically before making sequence_number NOT NULL.
+CREATE UNIQUE INDEX conversation_messages_turn_sequence_idx
+ON conversation_messages (turn_id, sequence_number)
+WHERE turn_id IS NOT NULL;
 ALTER TABLE conversation_tool_calls
   ADD COLUMN turn_id UUID NULL REFERENCES conversation_turns(id) ON DELETE SET NULL;
 ALTER TABLE usage_events
   ADD COLUMN turn_id UUID NULL REFERENCES conversation_turns(id) ON DELETE SET NULL;
 ```
 
-Indexes cover `(conversation_id, started_at)`, message `turn_id`, tool-call `turn_id`, and usage
-`turn_id`. Conversations enforce `status=deleted` exactly when `deleted_at` is non-null; an
-`anonymized_at` value is permitted only for a deleted conversation.
+Indexes cover `(conversation_id, started_at)`, message `turn_id`, unique per-turn message sequence,
+tool-call `turn_id`, and usage `turn_id`. The applied migration deterministically backfills existing
+messages, then makes `sequence_number` non-null with a non-negative check. Conversations enforce
+`status=deleted` exactly when `deleted_at` is non-null; an `anonymized_at` value is permitted only for
+a deleted conversation.
 
 `completeTurn` requires the owned active conversation, the server-issued processing turn ID, status
 `succeeded|failed`, non-negative integer latency, ordered messages, citations, tool calls, safe usage,
 and optional summary/title updates. One database transaction:
 
 - locks and verifies the conversation and processing turn;
-- inserts ordered messages linked to the turn;
+- inserts ordered messages linked to the turn with zero-based sequence numbers;
 - inserts bounded tool-call audit rows linked to the turn and optional message;
 - inserts one `usage_events.event_type=chat_turn` row linked to conversation and turn;
 - updates the bounded summary/title and conversation timestamp;
@@ -113,8 +123,9 @@ recovery. A later retry may complete the same processing turn once; an already c
 its stored result without duplicating child rows when the requested terminal status matches, and
 otherwise conflicts.
 
-Messages are bounded to 100 per turn and 20,000 UTF-16 code units each. Tool calls are bounded to 50
-per turn; tool name/correlation/error strings use stable server-owned grammars. Citations, message
+Messages are bounded to 100 per turn and 20,000 UTF-16 code units each. Their input array order is
+durable and is never inferred from UUID ordering. Tool calls are bounded to 50 per turn; tool
+name/correlation/error strings use stable server-owned grammars. Citations, message
 metadata, tool arguments/results, turn metadata, and checkpoint JSON each serialize to at most
 `CONVERSATION_AUDIT_JSON_BYTES`, default `65536`, accepted range `1024..1048576`. Token/retrieval
 counts and latency are non-negative safe integers.

@@ -418,10 +418,10 @@ CREATE TABLE conversation_tool_calls (
 );
 ```
 
-SV-US-010 adds `conversations.deleted_at/anonymized_at`, the first-class
-`conversation_turns` table, and nullable `turn_id` foreign keys on messages, tool calls, and usage
-events. The exact migration, constraints, indexes, atomic completion behavior, JSON bounds, and
-scrubbing lifecycle are normative in
+SV-US-010 adds `conversations.deleted_at/anonymized_at`, the first-class `conversation_turns` table,
+nullable `turn_id` foreign keys on messages, tool calls, and usage events, and a non-negative
+`conversation_messages.sequence_number` with unique per-turn ordering. The exact migration,
+constraints, indexes, atomic completion behavior, JSON bounds, and scrubbing lifecycle are normative in
 [`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md).
 
 ## Personalization
