@@ -600,6 +600,8 @@ Missing, mismatched, deleted, and malformed conversation IDs share:
 ## Admin Routes
 
 Admin routes require an admin API key or admin session.
+Exact session, scope, diagnostics, usage, reindex tracking, privacy, and failure behavior is
+normative in [`OPERATIONS_ADMIN_CONTRACT.md`](OPERATIONS_ADMIN_CONTRACT.md).
 
 ### `POST /admin/reindex`
 

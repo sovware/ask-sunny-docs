@@ -376,6 +376,8 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 ### SV-US-012 — Observe and administer the backend
 
+**Normative contract:** [`OPERATIONS_ADMIN_CONTRACT.md`](OPERATIONS_ADMIN_CONTRACT.md)
+
 **User story**
 
 > As a **server operator**, I want diagnostics, usage reporting, and controlled reindex coordination, so that I can detect failures and support the WordPress integration.
