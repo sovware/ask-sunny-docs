@@ -102,6 +102,13 @@ HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 MAX_ALLOWED_SEARCH_IDS=1000
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
+MAX_CONTENT_ITEM_BYTES=524288
+MAX_METADATA_FIELDS=100
+MAX_METADATA_KEY_CHARS=64
+MAX_METADATA_LABEL_CHARS=120
+MAX_METADATA_STRING_CHARS=2000
+MAX_METADATA_ARRAY_ITEMS=50
+MAX_METADATA_NESTING_DEPTH=4
 ```
 
 `AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.

@@ -69,6 +69,13 @@ HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 MAX_ALLOWED_SEARCH_IDS=1000
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
+MAX_CONTENT_ITEM_BYTES=524288
+MAX_METADATA_FIELDS=100
+MAX_METADATA_KEY_CHARS=64
+MAX_METADATA_LABEL_CHARS=120
+MAX_METADATA_STRING_CHARS=2000
+MAX_METADATA_ARRAY_ITEMS=50
+MAX_METADATA_NESTING_DEPTH=4
 
 REDIS_ENABLED=false
 REDIS_URL=redis://127.0.0.1:6379
@@ -189,6 +196,13 @@ Hybrid search is the normal mode only after deployment verification and then exe
 ## Indexing Architecture
 
 WordPress owns the source registry, enable/disable controls, and indexing filters. It sends only eligible listings, reviews, and posts. The backend dispatches by `source_kind` into separate persistence boundaries: Directorist listings, Directorist reviews, and WordPress content. Each kind has its own table, normalizer, and repository. Raw metadata, normalized metadata, deterministic embedding text, vector, content hash, indexing timestamps, and soft-delete state live atomically in `listings`. Review and WordPress content use their own content and vector tables. Review records resolve `parent_data_source_key` and `parent_source_id` to the composite listing key so ranking can aggregate review evidence.
+
+Validation and persistence preparation are separate boundaries. Source-kind validation produces a
+bounded public payload and a retrieval-only source descriptor. A read-model repository accepts only
+a source-specific prepared storage record; for review and WordPress records that includes the
+`content_hash` and `search_document` fields required by their tables. SV-US-006 owns deterministic
+serialization, hash/embedding-text production, embedding calls, and vector decisions. SV-US-005
+must not invent placeholder hashes or persist incomplete active review/WordPress rows.
 
 WordPress owns the source settings UI and computes the complete allowlist. After provisioning and whenever source enablement changes, WordPress atomically synchronizes `allowed_data_source_keys` to backend installation configuration. The backend stores and enforces that list across structured filtering, BM25 retrieval, vector retrieval, detail lookup, and model tools. Disabling a source updates the allowlist without deleting indexed content. Deletion occurs only when WordPress sends an explicit per-item deletion or bulk delete-by-data-source request initiated by an administrator or maintenance workflow.
 

@@ -287,6 +287,18 @@ WITH (key_field = 'search_key');
 
 The application must validate that a `data_source_id` has the matching `source_kind` before writing: `directorist_listing` to `listings`, `directorist_review` to `directorist_reviews`, and `wordpress_post` to `wordpress_content`.
 
+Read-model repository inputs are source-specific prepared records. Listing preparation may leave
+nullable `embedding_text`, `embedding`, and `content_hash` empty before indexing, while review and
+WordPress prepared records must include their non-null `search_document` and `content_hash` fields.
+SV-US-006 creates those deterministic values; SV-US-005 defines and enforces the table boundary and
+does not store placeholder hashes. All `data_sources` refresh plus matching content writes run in one
+transaction. Review writes resolve both the classified parent source and the composite parent listing
+before inserting, returning `409 parent_listing_missing` with no orphan content row when absent.
+
+Registering or refreshing `data_sources` never modifies `installation_config.allowed_data_source_keys`.
+The same `source_id` remains unique only within its concrete `data_source_id`; it may exist under a
+different source key without collision.
+
 ## Embeddings And Hybrid Search
 
 Listing vectors live on the `listings` row so normalized state, hash, embedding text, vector, and soft-delete state are updated atomically. Reviews and WordPress content retain source-specific embedding tables because they have independent lifecycles and repository contracts.

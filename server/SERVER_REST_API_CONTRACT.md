@@ -625,3 +625,43 @@ Returns operational state.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
 - Chat routes must reject or ignore caller-supplied `ai_provider`, provider API keys, base URLs, and model names; only environment configuration is authoritative.
 - Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.
+
+### Content And Metadata Safety Limits
+
+The server applies these defaults before any source registration, content write, hash, or embedding
+call. Deployments may lower them but must not exceed the documented environment-schema bounds.
+
+| Setting | Default | Maximum accepted configuration | Applies to |
+|---|---:|---:|---|
+| `MAX_CONTENT_ITEM_BYTES` | 524288 | 2097152 | UTF-8 JSON serialization of one complete content item |
+| `MAX_METADATA_FIELDS` | 100 | 500 | Entries in each metadata/taxonomy/context map |
+| `MAX_METADATA_KEY_CHARS` | 64 | 128 | Stable metadata, taxonomy, and context keys |
+| `MAX_METADATA_LABEL_CHARS` | 120 | 240 | Public metadata labels |
+| `MAX_METADATA_STRING_CHARS` | 2000 | 10000 | One metadata/context/taxonomy string value |
+| `MAX_METADATA_ARRAY_ITEMS` | 50 | 200 | One public metadata/context/taxonomy array |
+| `MAX_METADATA_NESTING_DEPTH` | 4 | 8 | Sanitized `raw_payload`; typed metadata maps remain flatter |
+
+Stable metadata/context keys match `[a-z0-9][a-z0-9_-]*`. Keys beginning with `_` or the reserved
+private prefixes `admin_`, `private_`, `secret_`, `token_`, `password_`, `payment_`, and `billing_`
+are rejected. Objects use ordinary prototypes, own enumerable properties, and no executable values.
+Strings containing script/iframe/object/embed markup, inline event-handler syntax, `javascript:`,
+`vbscript:`, or executable `data:` URLs are rejected rather than sanitized silently.
+
+Public URLs are absolute `http` or `https` URLs without embedded credentials. `url` and `file`
+metadata field types contain one such URL or a bounded array of them. `listing_metadata` is a flat
+map whose values contain only `label`, `field_type`, optional `provider`, and `value`; its `value` is
+null, a finite number, a boolean, one bounded string, or a bounded array of those primitives.
+`taxonomies`, `post_metadata`, `review_metadata`, and `source_context` are flat key maps with primitive
+or primitive-array values. `raw_payload` may retain sanitized public JSON up to the configured depth;
+unexpected deeper objects are rejected. Private fields are rejected even if the total payload is
+otherwise valid.
+
+`data_source_label`, source URLs, source IDs, title/status, directory identity, review parent fields,
+and WordPress post type are validated before metadata. Active content requires an absolute safe
+source URL and non-empty title. Directorist listing IDs/directory IDs and review parent listing IDs
+must parse losslessly to positive JavaScript-safe integers.
+
+The source-kind validator returns a bounded public payload and retrieval-only source descriptor. The
+source-specific read-model repository accepts a prepared storage record. SV-US-006 supplies
+deterministic `search_document`, `embedding_text`, `content_hash`, and vectors; SV-US-005 does not use
+placeholder hashes to satisfy non-null columns.
