@@ -49,6 +49,20 @@ CREATE TABLE api_keys (
 );
 ```
 
+Allowlist replacement uses one conditional statement that matches
+`allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
+the version by exactly one, and sets `allowed_data_sources_updated_at` from the database clock. A
+zero-row update is `409 retrieval_config_conflict`; it must not retry against a newer version or
+partially alter the array. The initial version is `0`, including before the first allowlist sync.
+
+Canonical source keys are lower-case and use one of
+`directorist:<slug>`, `directorist:<slug>:reviews`, or `wordpress:<post-type>`, where `<slug>` and
+`<post-type>` match `[a-z0-9][a-z0-9_-]{0,63}`. The service trims and lowercases input, deduplicates
+after canonicalization, and stores keys in ascending bytewise order. It validates shape and the
+configured count bound but does not require a matching `data_sources` row: initial allowlist
+synchronization may precede the first content delivery. An empty array is valid and fails retrieval
+closed.
+
 For WordPress installation credentials, `key_prefix` is the unique
 `ask_live_<16-lowercase-hex-key-id>` portion of the presented key and `key_hash` is the hex SHA-256
 digest of the complete high-entropy API key. The digest is used only after the prefix selects a
