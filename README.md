@@ -14,6 +14,7 @@ This documentation follows these requirements and architectural patterns:
 - LangGraph JavaScript documentation: https://docs.langchain.com/oss/javascript/langgraph/overview
 - LangGraph persistence documentation: https://docs.langchain.com/oss/python/langgraph/persistence
 - Grounded chat implementation contract: [`server/GROUNDED_CHAT_CONTRACT.md`](server/GROUNDED_CHAT_CONTRACT.md)
+- Operations/admin implementation contract: [`server/OPERATIONS_ADMIN_CONTRACT.md`](server/OPERATIONS_ADMIN_CONTRACT.md)
 
 ## Product Requirements
 
