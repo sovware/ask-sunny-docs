@@ -69,6 +69,7 @@ Future-facing requirements:
 - [`server/SERVER_APP_ARCHITECTURE.md`](server/SERVER_APP_ARCHITECTURE.md): native/optional-Docker runtime, ParadeDB hybrid retrieval, provider-selectable Responses usage, security, failures, and server flow charts.
 - [`server/HYBRID_SEARCH_PLAN.md`](server/HYBRID_SEARCH_PLAN.md): BM25 + pgvector rollout, package compatibility gate, RRF policy, failure behavior, tests, and evaluation.
 - [`server/RANKING_AND_CITATION_CONTRACT.md`](server/RANKING_AND_CITATION_CONTRACT.md): versioned relevance-first ranking, review aggregation, promotion disclosures, citations, uncertainty, deduplication, and evaluation gates.
+- [`server/CONVERSATION_CONTEXT_CONTRACT.md`](server/CONVERSATION_CONTEXT_CONTRACT.md): exact visitor ownership, bounded history, turn audit records, PostgreSQL checkpoints, history access, deletion, anonymization, and retention.
 - [`server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md`](server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md): Ask Sunny indexing, retrieval, chat, caching, security, and semantic-search flows.
 - [`server/SERVER_DATABASE_SCHEMA.md`](server/SERVER_DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, admin sessions, and migrations.
 - [`server/SERVER_REST_API_CONTRACT.md`](server/SERVER_REST_API_CONTRACT.md): backend REST endpoints called by WordPress, future mobile clients, and server admins.

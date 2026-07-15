@@ -328,6 +328,10 @@ citation, uncertainty, deduplication, and evaluation contracts are defined in
 **Dependencies:** SV-US-002  
 **Priority:** Must have
 
+The normative identity, ownership, bounded history, provider-neutral turn audit, PostgreSQL
+checkpoint, history route, deletion, anonymization, and retention rules are defined in
+[`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md).
+
 ### SV-US-011 — Receive a complete grounded chat response
 
 **User story**

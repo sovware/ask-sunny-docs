@@ -163,6 +163,12 @@ flowchart TD
 
 LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in [`SERVER_DATABASE_SCHEMA.md`](SERVER_DATABASE_SCHEMA.md); checkpoints are for graph recovery and short-term orchestration, not the only audit log.
 
+SV-US-010 fixes the exact-one visitor identity boundary, non-disclosing ownership checks, bounded
+summary/history context, first-class turn audit transaction, immutable local PostgreSQL checkpoint
+store, history route, and privacy lifecycle in
+[`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md). SV-US-011 consumes these
+boundaries rather than storing provider-hosted conversation state.
+
 ## AI Provider Adapter
 
 Use the configured provider's Responses API for:

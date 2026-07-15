@@ -112,6 +112,11 @@ MAX_METADATA_ARRAY_ITEMS=50
 MAX_METADATA_NESTING_DEPTH=4
 RANKING_PROMOTION_CONFIG_JSON=[]
 RANKING_FEATURED_DISCLOSURE=Featured
+CONVERSATION_HISTORY_MESSAGE_LIMIT=20
+CONVERSATION_SUMMARY_MAX_CHARS=4000
+CONVERSATION_AUDIT_JSON_BYTES=65536
+CONVERSATION_RETENTION_DAYS=90
+CONVERSATION_DELETED_GRACE_DAYS=30
 ```
 
 `AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.
@@ -128,6 +133,11 @@ score-key stage before the mandatory allowlist/structured hydration query.
 and disclosure grammar in
 [`RANKING_AND_CITATION_CONTRACT.md`](../server/RANKING_AND_CITATION_CONTRACT.md). Invalid ranking JSON
 or disclosure text fails startup rather than silently changing ranking or omitting a required label.
+
+Conversation history, summary, audit JSON, retention, and deleted-row grace bounds follow
+[`CONVERSATION_CONTEXT_CONTRACT.md`](../server/CONVERSATION_CONTEXT_CONTRACT.md). Run the bounded
+retention CLI on a schedule only after backup/restore and privacy checks; it returns counts and must
+not log identities or stored content.
 
 Environment safety rules:
 
