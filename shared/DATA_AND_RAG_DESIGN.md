@@ -252,6 +252,15 @@ Tool outputs should be compact:
 
 The server must intersect every model-selected `data_source_keys` value with the persisted `allowed_data_source_keys`. The model and chat caller cannot override or expand the allowlist through tool arguments or request fields. An empty or missing backend allowlist fails closed and yields no RAG candidates.
 
+The tool delegates to the internal SV-US-008 retrieval contract. Core category, location, amenity,
+price, rating, distance, and taxonomy filters use server-owned paths. Generic metadata/date keys must
+also appear in the selected source's persisted `context_metadata.retrieval_filter_keys`. Both BM25 and
+vector queries receive the same validated predicates; a source that cannot apply a requested filter
+does not match. Results use stable source identity, `0..1` normalized fused scores, compact matched
+metadata, and `result_role=review_evidence` for reviews with active allowed parent identity. The exact
+filter shapes, bounds, score calculation, and request-local BM25 fallback are defined in the server
+[`HYBRID_SEARCH_PLAN.md`](../server/HYBRID_SEARCH_PLAN.md).
+
 ## Evaluation
 
 Track:

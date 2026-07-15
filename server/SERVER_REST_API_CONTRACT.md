@@ -492,6 +492,13 @@ The chat caller does not provide `allowed_data_source_keys`. The backend loads i
 
 The chat caller also cannot choose the AI provider or model. The server uses `AI_PROVIDER` and the selected provider's environment configuration for the entire turn.
 
+SV-US-008 adds no public retrieval endpoint. `search_content` and `get_content_detail` are
+server-owned application/tool boundaries used by the later chat workflow. Their validated filter
+grammar, allowlist intersection, bounded candidate/result shape, review-parent handling, normalized
+fusion score, detail exclusions, and vector-only fallback are normative in
+[`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md). Neither boundary accepts raw SQL, a provider/model,
+an embedding, or caller authority to expand the persisted allowlist.
+
 Response:
 
 ```json
