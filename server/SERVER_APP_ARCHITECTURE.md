@@ -216,6 +216,8 @@ flowchart TD
 - OpenAI, Groq, and embedding-provider keys live only in the backend environment.
 - Installation provisioning secret is used only by trusted WordPress server-side code.
 - Generated installation API keys are hashed at rest on the backend and stored server-side in WordPress options.
+- Installation keys use unique non-secret prefixes for lookup, high-entropy secret segments, fixed server-defined route scopes, and immediate atomic revocation of older installation keys on rotation.
+- Malformed, unknown, hash-mismatched, and revoked bearer keys share one `401 authentication_error`; wrong-scope credentials receive a non-descriptive `403 forbidden`.
 - Browser requests use WordPress nonces or anonymous session tokens, never backend bearer keys.
 - Mobile app access should use a separate public-client auth path, not the WordPress installation API key.
 - Store user preference and conversation data with deletion/export paths planned from the beginning.

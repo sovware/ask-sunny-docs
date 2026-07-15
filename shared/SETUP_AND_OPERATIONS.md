@@ -315,6 +315,19 @@ Recovery sequence:
 - Verify backend logs for `authentication_error`.
 - Rotate the provisioning key only after updating both sides.
 
+### Emergency Installation Credential Rotation
+
+1. Verify the canonical WordPress domain and site URL from a trusted administrative session.
+2. Send one provisioning request from trusted server-side code and capture the returned installation key without logging it.
+3. Store the new key in the WordPress server-side option before making further backend calls. A successful response means every previous installation key was revoked atomically.
+4. Run an authenticated diagnostic with the new key and confirm the old key now receives the generic `401 authentication_error`.
+5. Record the non-secret `key_prefix`, rotation time, and operator in the incident record. Never record the full key.
+6. If the request fails or its response is lost, retry provisioning; the last successful response is the only active key and must replace any earlier captured value.
+
+If the provisioning secret itself may be exposed, replace it in the backend secret store, restart the
+service, update the trusted WordPress-side provisioning workflow, and only then rotate the
+installation credential. Do not place either secret in command history, tickets, or logs.
+
 ## Production Readiness Checklist
 
 - The selected native or Docker deployment exposes only the HTTPS reverse proxy; Docker images are pinned when Docker is used.

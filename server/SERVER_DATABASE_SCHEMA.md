@@ -49,6 +49,17 @@ CREATE TABLE api_keys (
 );
 ```
 
+For WordPress installation credentials, `key_prefix` is the unique
+`ask_live_<16-lowercase-hex-key-id>` portion of the presented key and `key_hash` is the hex SHA-256
+digest of the complete high-entropy API key. The digest is used only after the prefix selects a
+candidate row and is compared in constant time. Plaintext keys are never persisted.
+
+The `metadata` object for a WordPress installation key contains its fixed `scopes`, a
+`rotation_id`, and either `rotated_from_key_ids` on the newly issued key or `revocation_reason` plus
+`replaced_by_key_id` on keys revoked by rotation. Provisioning/rotation atomically upserts the
+singleton installation identity, inserts the new key, and revokes every previously active
+`wordpress_installation` key. A failed transaction must leave the prior credential active.
+
 ## Data Source Metadata
 
 The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into `installation_config.allowed_data_source_keys`; the backend enforces that persisted list for RAG.
