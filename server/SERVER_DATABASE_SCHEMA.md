@@ -209,6 +209,13 @@ The listing repository must implement this write behavior:
 - Delete by setting `deleted_at`; an unknown ID may be inserted as a minimal tombstone so deletion state is recorded even when the complete listing row never arrived.
 - Invalidate listing result and vector-candidate caches only after a successful write.
 
+The public SV-US-007 deletion contract does not insert unknown-item placeholders for any source kind,
+including listings. A missing source/item is an idempotent zero-row success. This keeps behavior
+uniform with review and WordPress tables, whose required public columns do not permit minimal
+tombstones. Known listings set `deleted_at`; known reviews/WordPress content set `status=deleted`.
+Source-wide deletion changes only active rows in the matching source-kind table and never mutates the
+installation allowlist.
+
 Repository JSONB parameters must be sent as JSONB values, not JSON-encoded strings. Include an idempotent repair migration for legacy string-valued JSONB rows.
 
 ## Directorist Reviews
@@ -460,6 +467,8 @@ CREATE INDEX usage_events_type_idx ON usage_events (event_type);
 -- source kind, outcome, embedding model/dimensions, normalization version, attempt count, and
 -- embedding latency. Full content, raw payloads, vectors, provider bodies, credentials, and guessed
 -- cost are forbidden. Observability failure does not roll back a committed content transaction.
+-- SV-US-007 adds safe content_bulk_index, content_delete, and content_delete_source events. Bulk
+-- metadata contains only item/outcome counts; delete metadata contains source kind and deleted count.
 
 CREATE TABLE admin_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
