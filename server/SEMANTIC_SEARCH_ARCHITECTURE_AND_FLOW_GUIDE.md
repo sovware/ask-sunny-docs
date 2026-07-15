@@ -79,6 +79,13 @@ HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
+MAX_CONTENT_ITEM_BYTES=524288
+MAX_METADATA_FIELDS=100
+MAX_METADATA_KEY_CHARS=64
+MAX_METADATA_LABEL_CHARS=120
+MAX_METADATA_STRING_CHARS=2000
+MAX_METADATA_ARRAY_ITEMS=50
+MAX_METADATA_NESTING_DEPTH=4
 ```
 
 The hybrid flag begins `false` for installation or upgrade. It changes to `true` only after the `pg_search` package is proven compatible with the running PostgreSQL major version, execution OS, and architecture and all verification checks pass. The exact gate is defined in [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md).
@@ -189,6 +196,13 @@ Indexing requirements:
 - Tombstone deleted, unpublished, or newly ineligible content; never retrieve tombstoned rows.
 - Return non-2xx or a per-item error for failures so WordPress can retry or report them.
 - Rebuild or analyze BM25/vector indexes through controlled operations, not inside a public chat request.
+
+Validation precedes indexing preparation. It enforces the configured item/metadata limits, rejects
+private or executable values and unsafe URLs, and produces a source-specific public payload plus a
+retrieval-only source descriptor. The read-model dispatcher then routes only prepared listing,
+review, or WordPress storage records to their matching repository inside the same transaction as
+source registration. SV-US-006 owns preparation of deterministic search/embedding text, hashes, and
+vectors; repositories never fabricate placeholders for required indexed fields.
 
 ## 8. Semantic And Hybrid Retrieval Flow
 
