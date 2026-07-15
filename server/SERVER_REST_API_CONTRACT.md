@@ -332,7 +332,18 @@ An enabled WordPress post-type record is stored in `wordpress_content`:
 
 ### `POST /content/bulk-upsert`
 
-Indexes multiple records. Maximum batch size should default to `50`. A batch may contain multiple source kinds; the service validates and upserts each item through its matching repository and vector-storage contract.
+Indexes multiple records. `MAX_CONTENT_BATCH_ITEMS` defaults to `50` and accepts 1 through 200. A
+batch may contain multiple source kinds; the service validates and upserts each item through its
+matching repository and vector-storage contract. The envelope must contain only a non-empty `items`
+array within the limit. Empty/oversized/malformed envelopes return `422 validation_error` with
+`field=items` before validating, hashing, embedding, or writing any item.
+
+Valid batches process items independently and sequentially in request order. Each item keeps its own
+transaction; one item failure never rolls back or hides another success. The HTTP response is `200`
+with `ok: true` whenever the batch envelope was accepted, even if individual items fail. Unexpected
+failures use the safe per-item code `indexing_error`; provider bodies, content, and vectors are never
+included. Clients retry only failed items and may safely retry the whole batch because source identity
+plus deterministic content hash is the idempotency boundary.
 
 Request:
 
@@ -360,15 +371,40 @@ Response:
 {
   "ok": true,
   "indexed": 1,
+  "updated": 0,
   "unchanged": 0,
   "failed": 0,
+  "results": [
+    {
+      "index": 0,
+      "ok": true,
+      "status": "indexed",
+      "data_source_key": "directorist:events",
+      "source_id": "2001",
+      "content_hash": "sha256-hex",
+      "changed": true,
+      "embedding": {"reused": false}
+    }
+  ],
   "errors": []
 }
 ```
 
+Each `errors` member is also present in `results` at its request index and has
+`{"index": 1, "ok": false, "status": "failed", "data_source_key": "...", "source_id":
+"...", "error": {"code": "...", "message": "...", "field": "...", "retryable": true}}`.
+`field` is omitted when not applicable. `retryable` is true only for transient dependency/server
+failures, including `embedding_unavailable`.
+
 ### `POST /content/delete`
 
-Removes content from retrieval. `data_source_key` resolves the source kind and matching table. Prefer tombstoning over hard deletion.
+Removes content from retrieval. `data_source_key` resolves the source kind and matching table. Prefer
+tombstoning over hard deletion. The request object contains only a canonical `data_source_key` and a
+non-empty `source_id` of at most 128 characters; Directorist listing IDs must parse losslessly to a
+positive safe integer. A missing source or item is an idempotent success with `deleted_items: 0` and
+does not create a placeholder. A present active item is tombstoned with `deleted_items: 1`; repeating
+the delete returns `0`. Listing rows set `deleted_at`; review and WordPress rows set `status=deleted`.
+Vectors may remain stored but every retrieval path filters the owning tombstone/status first.
 
 Request:
 
@@ -384,13 +420,18 @@ Response:
 ```json
 {
   "ok": true,
-  "status": "deleted"
+  "status": "deleted",
+  "deleted_items": 1
 }
 ```
 
 ### `POST /content/delete-by-data-source`
 
-Tombstones every active record for a key in its source-kind table. WordPress calls this only for an explicit admin **Delete all indexed data** action or an equivalent deliberate maintenance operation. Disabling an optional WordPress source must not call this route.
+Tombstones every active record for a key in its source-kind table. WordPress calls this only for an
+explicit admin **Delete all indexed data** action or an equivalent deliberate maintenance operation.
+Disabling an optional WordPress source must not call this route. A missing key is an idempotent
+success with zero items. The operation updates only the resolved content table in one transaction and
+never inserts, deletes, or updates `installation_config.allowed_data_source_keys`.
 
 Request:
 
@@ -399,6 +440,19 @@ Request:
   "data_source_key": "wordpress:post"
 }
 ```
+
+All four content routes require an active installation credential with `content:write`. The existing
+correlation middleware accepts or creates `X-Correlation-ID`, echoes it in the response header, and
+associates logs with it; content bodies are never logged. No `Idempotency-Key` is required or stored:
+single/bulk upserts use source identity plus content hash, and deletes use current tombstone state.
+Malformed JSON/auth failures use the common error envelope. Accepted destructive requests do not
+return `404`, which makes interrupted WordPress retries converge safely.
+
+Each single upsert already records one `content_index` usage event. A bulk request additionally
+records one non-durable `content_bulk_index` event with total latency and safe counts
+`items/indexed/updated/unchanged/failed`; it contains no identities or content. Single/source deletion
+records `content_delete` or `content_delete_source` with latency, success, safe source kind, and
+`deleted_items`. Observability-write failure is logged safely and never changes the durable result.
 
 Response:
 
@@ -640,6 +694,7 @@ call. Deployments may lower them but must not exceed the documented environment-
 | `MAX_METADATA_STRING_CHARS` | 2000 | 10000 | One metadata/context/taxonomy string value |
 | `MAX_METADATA_ARRAY_ITEMS` | 50 | 200 | One public metadata/context/taxonomy array |
 | `MAX_METADATA_NESTING_DEPTH` | 4 | 8 | Sanitized `raw_payload`; typed metadata maps remain flatter |
+| `MAX_CONTENT_BATCH_ITEMS` | 50 | 200 | Items accepted by one bulk-upsert envelope before any processing |
 
 Stable metadata/context keys match `[a-z0-9][a-z0-9_-]*`. Keys beginning with `_` or the reserved
 private prefixes `admin_`, `private_`, `secret_`, `token_`, `password_`, `payment_`, and `billing_`
