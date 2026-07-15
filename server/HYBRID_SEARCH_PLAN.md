@@ -196,13 +196,16 @@ the raw non-negative `pdb.score`; vector results use cosine similarity
 sort score descending and then the stable tuple `(source_kind, data_source_key, source_id)` ascending.
 
 ParadeDB requires `pdb.score` to run in its supported simple search shape. Each source BM25 repository
-therefore first selects only `(search_key, score)` for the exact query, ordered by score/key and bounded
-by `MAX_ALLOWED_SEARCH_IDS`. It passes those keys/scores as typed array parameters to a second
+therefore first selects only `(search_key, score)` for the exact query, ordered by score and bounded
+by a validated integer `MAX_ALLOWED_SEARCH_IDS` literal (ParadeDB does not support a bind parameter
+or secondary key expression in this score-query shape). It passes those keys/scores as typed array parameters to a second
 hydration statement that applies the persisted allowlist, active/URL rules, and the same structured
 predicate builder used by vector search. Only rows surviving hydration are candidates; the repository
 then applies the branch candidate limit. The raw key stage returns no content and cannot bypass the
 filtered hydration boundary. Reaching the search-ID cap is reported in safe diagnostics so operators
 can evaluate recall without logging the query or identities.
+Hydrated rows receive the stable source-identity tie-breaker before fusion; the simple score query is
+the only ParadeDB-specific exception to applying that tie-breaker inside SQL.
 
 The common candidate contains `source_kind`, `data_source_key`, `data_source_label`, `source_id`,
 `title`, `url`, `result_role`, compact public `matched_metadata`, and branch score/rank. Review
