@@ -82,7 +82,8 @@ flowchart TD
 
 ## Ranking Policy
 
-Ranking should prioritize relevance first.
+Ranking prioritizes relevance first through the versioned launch contract in
+[`RANKING_AND_CITATION_CONTRACT.md`](../server/RANKING_AND_CITATION_CONTRACT.md).
 
 Base signals:
 
@@ -98,6 +99,11 @@ Base signals:
 - Review/rating signal when available.
 
 Promotion signals must be metadata-driven rather than fixed content-table columns. Featured content may receive a ranking boost only after meeting the user's actual constraints. Extension-provided promotion fields, if present, live in `listing_metadata` and require an explicit ranking configuration before use.
+
+Launch ordering is lexicographic by relevance, quality, promotion, then stable source identity.
+Promotion therefore breaks only an exact relevance-and-quality tie and can never compensate for a
+weaker relevance score. The normative score formula, configuration grammar, review aggregation,
+deduplication, and release evaluation gate are defined by the linked contract.
 
 When the optional Listing Reviews family is enabled, a review record may contribute BM25/semantic evidence and aggregate rating signals to its parent listing through `parent_data_source_key` and `parent_source_id`. A review is not returned as a listing recommendation card, but it may be cited directly when its text supports the answer.
 
@@ -124,7 +130,7 @@ Every recommendation should include:
 - Reason it matched.
 - Featured state and any configured disclosure metadata.
 
-The assistant should avoid inventing details not present in retrieved content. If dates, availability, or operating hours are uncertain, say so and link to the source.
+The assistant should avoid inventing details not present in retrieved content. If dates, availability, or operating hours are uncertain, say so and link to the source. Factual claim references resolve only against the allowlist-scoped evidence set; unresolved claims are returned as unsupported and must be removed, qualified, or regenerated.
 
 ## Content Normalization
 

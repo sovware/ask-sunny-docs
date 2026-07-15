@@ -499,6 +499,12 @@ fusion score, detail exclusions, and vector-only fallback are normative in
 [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md). Neither boundary accepts raw SQL, a provider/model,
 an embedding, or caller authority to expand the persisted allowlist.
 
+SV-US-009 likewise adds no public endpoint. Its internal `rank_and_cite` boundary consumes only the
+allowlist-scoped candidates above and follows
+[`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md). The later chat route exposes
+its recommendation, citation, disclosure, and uncertainty fields without accepting caller-supplied
+source URLs or authority.
+
 Response:
 
 ```json
@@ -514,7 +520,15 @@ Response:
       "title": "Community Workshop",
       "url": "https://example.com/events/community-workshop",
       "reason": "Matches the requested date and location.",
-      "is_featured": false
+      "is_featured": false,
+      "disclosures": [],
+      "uncertainties": [],
+      "ranking": {
+        "policy_version": "ask-sunny-ranking-v1",
+        "relevance_score": 0.91,
+        "quality_score": 0.4,
+        "promotion_score": 0
+      }
     }
   ],
   "citations": [
@@ -522,7 +536,12 @@ Response:
       "title": "Community Workshop",
       "url": "https://example.com/events/community-workshop",
       "source_kind": "directorist_listing",
-      "data_source_key": "directorist:events"
+      "data_source_key": "directorist:events",
+      "data_source_label": "Event Directory",
+      "source_id": "2001",
+      "citation_id": "citation-1",
+      "claim_ids": ["claim-1"],
+      "evidence_role": "primary"
     }
   ],
   "follow_up_questions": []

@@ -353,6 +353,12 @@ USING ivfflat (embedding vector_cosine_ops);
 
 RAG queries search only the tables represented by the persisted allowed data-source keys and apply source-specific structured filters before ranking. Listing retrieval obtains BM25 and vector candidates from `listings`; the other kinds obtain BM25 candidates from their content table and vector candidates from their source-specific embedding table. The application bounds both sets, fuses their ranks with the configured reciprocal-rank and weight settings, then performs final application ranking.
 
+Final ranking does not add a persistence table in SV-US-009. The repository projects only safe
+ranking fields from the existing dedicated listing/review/content columns and configured listing
+metadata. Policy version and scores are carried in the internal result and later message/tool audit
+payloads; evaluation fixtures and baselines are version-controlled artifacts. See
+[`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md).
+
 The shared predicate builder resolves only server-owned table/JSON surfaces. Generic metadata/date
 keys must appear in `data_sources.context_metadata.retrieval_filter_keys`, are passed as query
 parameters, and never become SQL identifiers. BM25 and vector statements receive the same allowed
