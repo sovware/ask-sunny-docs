@@ -160,6 +160,73 @@ Normalization rules:
 
 The same model and dimensions must be used for indexed documents and query embeddings. A dimension change requires new vector storage, a migration, and a complete reindex plan.
 
+### Deterministic indexing contract
+
+The launch normalization version is `ask-sunny-content-v1`. Before serialization, textual values are
+Unicode NFKC-normalized, WordPress shortcodes and HTML tags are removed, common and numeric HTML
+entities are decoded, line endings become `\n`, internal whitespace is collapsed, and surrounding
+whitespace is removed. Empty values are omitted. Map keys are sorted bytewise; arrays retain their
+received order. Finite numbers use JSON number rendering, booleans use `true`/`false`, and null values
+are omitted from embedding text while remaining typed in normalized JSON where the source contract
+requires them.
+
+Each source normalizer produces:
+
+- `normalized_payload`: a plain JSON object containing all validated public content-bearing fields,
+  source classification, public source/data-source identity, and approved typed metadata; it excludes
+  `raw_payload`, `source_updated_at`, receipt/index timestamps, hashes, vectors, internal database IDs,
+  request IDs, and other operational/debug state.
+- `search_document`: non-empty labeled lines for the source-kind fields specified below, joined with
+  `\n` in a fixed order. Metadata maps follow their bytewise key order and include stable key, public
+  label/type/provider when present, and canonical value.
+- `embedding_text`: the same deterministic labeled public representation as `search_document` at
+  launch, so BM25 and semantic indexing cannot silently cover different public fields.
+- `content_hash`: lowercase SHA-256 hex over UTF-8 canonical JSON of
+  `{normalization_version, source_kind, data_source_key, normalized_payload}` with recursively sorted
+  object keys and preserved array order.
+
+Listing line order is title, source kind, data-source label/key, source context, source URL, summary,
+tagline, body, directory label, categories, locations, tags, amenities, price, public contact/location
+fields, featured image/images, semantic terms, and sorted listing metadata. Review line order is title,
+source kind, data-source label/key, parent public listing ID/context, source URL, rating, categories,
+locations, body, and sorted review metadata. WordPress line order is title, source kind, data-source
+label/key, source context, source URL, post type, summary, body, sorted taxonomies, and sorted post
+metadata. Ranking-only flags such as `is_featured` stay in their dedicated stored row fields but are excluded from
+embedding text and the semantic hash; changing them updates the row while reusing the vector.
+
+An unchanged decision requires the same content hash plus a present vector for the configured model
+and dimensions. Reviews and WordPress content check their embedding table row; listings check the
+inline vector plus its stored `embedding_model` and `embedding_dimensions`. Existing listing vectors
+whose model identity is unknown are re-embedded on their next delivery. If only operational/raw-debug state changes, source receipt metadata may refresh but
+the content row, hash, vector, and embedding request remain unchanged. If only non-semantic normalized
+or ranking state changes while `embedding_text` is identical, update that state and reuse the current
+vector. A changed semantic hash, model, dimensions, normalization version, or missing vector requires
+a new embedding.
+
+### Embedding adapter and observability contract
+
+The OpenAI launch adapter sends one input per request to `OPENAI_EMBEDDINGS_URL` as
+`{"model": EMBEDDING_MODEL, "input": embedding_text, "encoding_format": "float"}` with bearer
+authentication. It accepts only a successful JSON response whose first data item has an array of
+exactly `EMBEDDING_DIMENSIONS` finite numbers. Optional `usage.prompt_tokens` and
+`usage.total_tokens` must be non-negative safe integers when present. The adapter never logs the API
+key, input text, response body, or vector.
+
+Network failures, request timeouts, HTTP 408/409/429, and HTTP 5xx are retryable. Other HTTP 4xx,
+invalid JSON/schema, non-finite values, and dimension mismatches are permanent for that attempt and
+are not retried. Exhausted retryable failures surface `503 embedding_unavailable`; permanent provider
+or response failures surface `502 embedding_invalid_response`. Both expose no provider body. A caller
+may retry after transient recovery or after correcting permanent configuration/input faults; every
+failure must leave the prior content/vector transaction unchanged.
+
+Every indexing attempt writes one `usage_events` row after the content transaction succeeds or fails:
+`event_type=content_index`, `success`, total `latency_ms`, optional provider `input_tokens`, and safe
+`error_code`. Metadata contains only `source_kind`, outcome (`indexed`, `updated`, `unchanged`, or
+`error`), `embedding_model`, `embedding_dimensions`, normalization version, embedding attempt count,
+and embedding latency. Provider cost is not returned by the launch embeddings API and is omitted; it
+must never be guessed. Usage-event write failure is logged safely and does not turn an otherwise
+durable content result into failure.
+
 ## 7. Indexing Flow
 
 ```mermaid

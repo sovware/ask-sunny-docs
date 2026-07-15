@@ -122,6 +122,8 @@ CREATE TABLE listings (
   normalized_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   embedding_text TEXT NULL,
   embedding vector(1536) NULL,
+  embedding_model TEXT NULL,
+  embedding_dimensions INTEGER NULL CHECK (embedding_dimensions IS NULL OR embedding_dimensions = 1536),
   content_hash TEXT NULL,
   indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NULL,
@@ -192,6 +194,11 @@ Within `normalized_metadata`, custom and extension-provided values use a flat `l
 Do not create separate custom-field and third-party-preset namespaces. `provider` is optional descriptive metadata and does not change storage location. Use stable field keys, preserve typed JSON values, and store public file-upload fields as sanitized URLs rather than file bytes. Admin-only/private fields are excluded from `raw_metadata`, `normalized_metadata`, and embeddings.
 
 `embedding_text` is the deterministic public text used by both embedding generation and the listing BM25 surface. `content_hash` covers the data-source identity, listing ID, directory classification, embedding text, normalized metadata, semantic terms, and normalization version. Operational values and `raw_metadata` are excluded from the hash.
+
+`embedding_model` and `embedding_dimensions` identify the inline listing vector. SV-US-006 adds these
+nullable columns through a forward migration. Pre-existing vectors have unknown identity and are
+regenerated on the next delivery; the migration does not guess or backfill a model name. Every new
+listing vector write stores both values atomically with the vector.
 
 The listing repository must implement this write behavior:
 
@@ -448,6 +455,11 @@ CREATE TABLE usage_events (
 
 CREATE INDEX usage_events_created_idx ON usage_events (created_at);
 CREATE INDEX usage_events_type_idx ON usage_events (event_type);
+
+-- SV-US-006 records one content_index event per indexing attempt. Metadata is restricted to safe
+-- source kind, outcome, embedding model/dimensions, normalization version, attempt count, and
+-- embedding latency. Full content, raw payloads, vectors, provider bodies, credentials, and guessed
+-- cost are forbidden. Observability failure does not roll back a committed content transaction.
 
 CREATE TABLE admin_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

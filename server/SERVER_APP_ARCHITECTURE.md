@@ -60,6 +60,9 @@ EMBEDDING_PROVIDER=openai
 OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
+EMBEDDING_REQUEST_TIMEOUT_MS=15000
+EMBEDDING_MAX_RETRIES=2
+EMBEDDING_RETRY_BASE_DELAY_MS=250
 
 HYBRID_SEARCH_ENABLED=false
 HYBRID_VECTOR_WEIGHT=0.65
@@ -88,6 +91,12 @@ DEFAULT_TIMEZONE=UTC
 ```
 
 `AI_PROVIDER` is the only switch for chat generation. A provider registry resolves that value to an adapter implementing the provider-neutral generation interface; orchestration, persistence, routes, and domain services must not branch on provider names. The selected adapter's API key, base URL, and model must be valid at startup; credentials for an inactive provider may be omitted. Embeddings are configured independently because generation and embedding providers do not have identical capabilities. Changing `AI_PROVIDER` does not change stored vector dimensions or trigger re-embedding, and provider identity is not stored in application database tables.
+
+Embedding requests use independent timeout and retry controls. `EMBEDDING_REQUEST_TIMEOUT_MS`
+defaults to 15000 and accepts 1000 through 60000. `EMBEDDING_MAX_RETRIES` defaults to 2 and accepts
+0 through 5; it counts retries after the initial request. `EMBEDDING_RETRY_BASE_DELAY_MS` defaults to
+250 and accepts 10 through 2000. Retry delay is exponential (`base * 2^retry_index`), capped at 5000
+milliseconds, and may be raised by a valid `Retry-After` value up to that same cap.
 
 Because chat is returned as one complete response, the WordPress proxy timeout must be greater than `AI_REQUEST_TIMEOUT_MS`; a 60-second WordPress timeout provides application overhead around the 45-second provider timeout.
 
