@@ -522,6 +522,7 @@ Response:
       "reason": "Matches the requested date and location.",
       "is_featured": false,
       "disclosures": [],
+      "volatile_details": [],
       "uncertainties": [],
       "ranking": {
         "policy_version": "ask-sunny-ranking-v1",

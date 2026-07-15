@@ -130,7 +130,7 @@ Every recommendation should include:
 - Reason it matched.
 - Featured state and any configured disclosure metadata.
 
-The assistant should avoid inventing details not present in retrieved content. If dates, availability, or operating hours are uncertain, say so and link to the source. Factual claim references resolve only against the allowlist-scoped evidence set; unresolved claims are returned as unsupported and must be removed, qualified, or regenerated.
+The assistant should avoid inventing details not present in retrieved content. Confirmed dates, availability, or operating hours use the card's `volatile_details`; insufficient evidence uses `uncertainties`, must be stated as uncertain, and retains the source link. Factual claim references resolve only against the allowlist-scoped evidence set; unresolved claims are returned as unsupported and must be removed, qualified, or regenerated.
 
 ## Content Normalization
 
