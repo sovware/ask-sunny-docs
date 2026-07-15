@@ -110,6 +110,8 @@ MAX_METADATA_LABEL_CHARS=120
 MAX_METADATA_STRING_CHARS=2000
 MAX_METADATA_ARRAY_ITEMS=50
 MAX_METADATA_NESTING_DEPTH=4
+RANKING_PROMOTION_CONFIG_JSON=[]
+RANKING_FEATURED_DISCLOSURE=Featured
 ```
 
 `AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.
@@ -121,6 +123,11 @@ Weights accept `0..1`, require a positive combined value, and are normalized at 
 K, candidate multiplier, and candidate cap within `1..10000`, `1..20`, and `1..1000` respectively.
 `MAX_ALLOWED_SEARCH_IDS` defaults to `1000` and accepts `1..10000`; it bounds ParadeDB's simple
 score-key stage before the mandatory allowlist/structured hydration query.
+
+`RANKING_PROMOTION_CONFIG_JSON` and `RANKING_FEATURED_DISCLOSURE` follow the strict public metadata
+and disclosure grammar in
+[`RANKING_AND_CITATION_CONTRACT.md`](../server/RANKING_AND_CITATION_CONTRACT.md). Invalid ranking JSON
+or disclosure text fails startup rather than silently changing ranking or omitting a required label.
 
 Environment safety rules:
 

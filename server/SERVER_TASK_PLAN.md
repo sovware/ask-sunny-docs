@@ -296,6 +296,10 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 **Dependencies:** SV-US-008  
 **Priority:** Must have
 
+The normative launch score, promotion/disclosure configuration, review aggregation, recommendation,
+citation, uncertainty, deduplication, and evaluation contracts are defined in
+[`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md).
+
 ## Epic 5 — Conversation and Grounded Answers
 
 ### SV-US-010 — Preserve conversation context safely

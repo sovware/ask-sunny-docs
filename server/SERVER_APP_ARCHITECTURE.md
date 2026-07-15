@@ -141,7 +141,7 @@ Recommended graph nodes:
 - `decide_tools`: choose retrieval tools and whether a clarifying question is required.
 - `select_data_sources`: choose relevant concrete sources from labels, descriptions, and context metadata.
 - `retrieve_content`: dispatch BM25 and vector searches to the listing, review, and WordPress-content repositories represented by selected keys, apply kind-specific structured constraints, then fuse their scored results. Selected keys must be a subset of the backend's stored `allowed_data_source_keys`. Event questions select an Event Directory listing source and apply its metadata fields; review or rating questions may also select classified review keys when the global Listing Reviews family is enabled.
-- `rank_and_filter`: merge semantic, structured, featured, configured promotion-metadata, and personalization signals.
+- `rank_and_filter`: apply the versioned relevance-first policy, aggregate review evidence to parent listings, canonicalize/deduplicate targets, and attach uncertainty and configured disclosure state. The normative internal boundary is [`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md).
 - `generate_answer`: call the selected provider adapter with tool outputs and citation candidates.
 - `persist_turn`: write messages, tool calls, citations, usage, and graph status.
 
@@ -205,7 +205,7 @@ Retrieval order:
 3. Generate BM25 candidates through `pg_search` and dense candidates through pgvector.
 4. Bound both candidate sets using the configured multiplier and maximum limit.
 5. Fuse results with reciprocal-rank fusion and the configured BM25/vector weights.
-6. Apply application ranking signals, deduplicate, and attach citations.
+6. Apply the versioned lexicographic application ranking policy, aggregate reviews, reject invalid or duplicate targets, and assemble allowlist-scoped citations and uncertainty labels.
 
 SV-US-008 is an internal application/repository boundary consumed later by chat tools; it adds no
 installation-facing search route. Its normalized candidates, filters, review-parent linkage, scoring,
