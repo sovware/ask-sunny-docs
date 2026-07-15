@@ -353,6 +353,12 @@ USING ivfflat (embedding vector_cosine_ops);
 
 RAG queries search only the tables represented by the persisted allowed data-source keys and apply source-specific structured filters before ranking. Listing retrieval obtains BM25 and vector candidates from `listings`; the other kinds obtain BM25 candidates from their content table and vector candidates from their source-specific embedding table. The application bounds both sets, fuses their ranks with the configured reciprocal-rank and weight settings, then performs final application ranking.
 
+The shared predicate builder resolves only server-owned table/JSON surfaces. Generic metadata/date
+keys must appear in `data_sources.context_metadata.retrieval_filter_keys`, are passed as query
+parameters, and never become SQL identifiers. BM25 and vector statements receive the same allowed
+data-source IDs and predicates. Review candidates join an active, URL-bearing parent listing whose
+source key is also allowed. Detail lookup repeats the same active, URL, allowlist, and parent checks.
+
 Do not run the BM25 migration until the `pg_search` package compatibility gate and extension checks pass. The migration must create all three indexes and run `ANALYZE` after bulk indexing. Direct smoke queries using the `|||` operator and `pdb.score(search_key)` must succeed for every populated source kind before `HYBRID_SEARCH_ENABLED=true`. If the package match cannot be proven, the extension or any required index is unavailable, or a smoke query fails, keep hybrid search disabled and report the degraded state. If the embedding dimension changes, add new vector storage and explicitly re-embed each source kind; do not silently alter an existing vector column in place.
 
 ## Conversations
@@ -469,6 +475,9 @@ CREATE INDEX usage_events_type_idx ON usage_events (event_type);
 -- cost are forbidden. Observability failure does not roll back a committed content transaction.
 -- SV-US-007 adds safe content_bulk_index, content_delete, and content_delete_source events. Bulk
 -- metadata contains only item/outcome counts; delete metadata contains source kind and deleted count.
+-- SV-US-008 adds content_retrieval. It uses retrieval_count and metadata limited to mode/degradation,
+-- allowlist version, safe limits, source-kind count, candidate counts, and branch latencies. Query
+-- text, filters, result identities/content, raw scores, vectors, SQL, and provider identity are forbidden.
 
 CREATE TABLE admin_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

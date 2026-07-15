@@ -142,9 +142,76 @@ HYBRID_BM25_WEIGHT=0.35
 HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
+HYBRID_VECTOR_MIN_SIMILARITY=0.25
+MAX_RETRIEVAL_RESULTS=12
 ```
 
 The first value is the safe installation and upgrade value. A verified normal production deployment changes it to `true`. Weight changes require evaluation and a ranking-version bump so cached or historical results are not confused with a new policy.
+
+The application accepts weights from `0` through `1`, requires at least one positive weight, and
+normalizes them by their sum before fusion. `HYBRID_RRF_K` accepts `1..10000`, the multiplier accepts
+`1..20`, the maximum candidate limit accepts `1..1000`, minimum cosine similarity accepts `0..1`,
+and `MAX_RETRIEVAL_RESULTS` accepts `1..100`. For a requested result limit `n`, each branch receives
+`min(HYBRID_MAX_CANDIDATE_LIMIT, n * HYBRID_CANDIDATE_MULTIPLIER)` candidates. A request cannot
+exceed `MAX_RETRIEVAL_RESULTS`.
+
+### Retrieval input and filter contract
+
+SV-US-008 exposes an application boundary, not a new public HTTP route. Its input contains a
+non-empty normalized `query`, optional requested `data_source_keys`, optional `filters`, and optional
+`limit`. The policy accessor intersects requested keys with the persisted allowlist before any
+repository is called. The filter object may contain:
+
+- `categories`, `locations`, and `amenities`: non-empty bounded arrays of normalized strings; matching
+  is case-insensitive exact membership.
+- `price`: optional finite non-negative `min`/`max` and an optional three-letter upper-case currency.
+- `rating_min`: a finite value from `0` through `5`.
+- `taxonomies`: a bounded map of stable taxonomy keys to non-empty string arrays.
+- `metadata`: a bounded array of `{key, operator, value}` entries. Operators are `eq`, `in`, `gte`,
+  and `lte`; values are bounded public primitives or primitive arrays appropriate to the operator.
+- `date`: `{key, from, to, timezone}` where `key` is a permitted date/datetime metadata field,
+  `from` and `to` are valid RFC 3339 instants with explicit offsets and `from <= to`, and `timezone`
+  is a valid IANA zone. Comparisons use the represented instants; the zone records the user's local
+  interpretation and is not used to reinterpret an already offset timestamp.
+- `distance`: `{latitude, longitude, radius_miles}` with latitude `-90..90`, longitude `-180..180`,
+  and a finite positive radius no greater than 500 miles. Distance applies to listing coordinates and
+  to reviews through their active parent listing.
+
+Arrays/maps use the existing metadata count/string bounds. Unknown keys, operators, shapes, NaN or
+infinite numbers, reversed ranges, and invalid zones/instants reject the entire retrieval input before
+embedding or SQL. Core categories, locations, amenities, price, rating, coordinates, and public
+taxonomy fields are filterable. A generic metadata/date key is permitted only when that source's
+stored `data_sources.context_metadata.retrieval_filter_keys` contains the stable key. SQL identifiers
+are never derived from these keys: repositories select a server-owned JSON column/path and pass the
+validated key/value as parameters. A source that cannot apply a requested constraint does not match;
+the constraint is never silently dropped from one branch.
+
+### Candidate and result contract
+
+Each source repository applies the identical active-row, non-empty safe URL, allowlist, and structured
+predicate builder to its BM25 and vector statements. BM25 uses the exact normalized query and returns
+the raw non-negative `pdb.score`; vector results use cosine similarity
+`1 - (embedding <=> query_embedding)` and apply the configured threshold before ranking. Branches
+sort score descending and then the stable tuple `(source_kind, data_source_key, source_id)` ascending.
+
+The common candidate contains `source_kind`, `data_source_key`, `data_source_label`, `source_id`,
+`title`, `url`, `result_role`, compact public `matched_metadata`, and branch score/rank. Review
+candidates use `result_role=review_evidence` and additionally contain their active parent listing's
+source key, source ID, title, and URL. Both the classified review key and its parent listing key must
+be allowed. A review is never represented as a listing/recommendation card.
+
+Fusion deduplicates by the stable source tuple and merges the two branch contributions. It computes
+weighted RRF with normalized weights, then divides the raw fused value by the maximum possible value
+`(normalized_vector_weight + normalized_bm25_weight) / (rrf_k + 1)` to expose `fused_score` in
+`0..1`. Results sort by fused score descending and the stable tuple ascending, and are truncated to
+the requested result limit. The response reports `mode=hybrid|vector_only`, a nullable
+`degradation_reason`, the allowlist version, bounded results, and safe branch/fused counts and
+latencies. Raw query text, embeddings, SQL, and private/raw payloads are never returned.
+
+Detail lookup is a separate application boundary accepting one source key and source ID. It uses the
+same policy accessor and active-row/URL/parent rules, returns the candidate's public identity and
+compact evidence without scores, raw payloads, or vectors, and returns `null` for missing, inactive,
+URL-less, or disallowed content. It has no public HTTP route in this story.
 
 ## 7. Runtime Flow
 
@@ -174,6 +241,14 @@ flowchart TD
 - Runtime BM25 failure after a verified deployment: fail that BM25 operation closed, emit high-signal diagnostics, and use the documented vector-only path without claiming a hybrid score.
 - Vector or embedding failure: do not present BM25-only output as normal hybrid output unless an explicit product fallback policy is added and tested.
 
+A runtime BM25 statement failure after a successful readiness gate is request-local. Discard all BM25
+candidates for that retrieval, return only already successful thresholded vector candidates with
+`mode=vector_only` and `degradation_reason=bm25_runtime_error`, and record the failure. A later request
+tries BM25 again; only the readiness probe changes startup/health capability state. If query embedding
+or vector retrieval fails, return the stable embedding/retrieval error and do not serve BM25-only
+results. Requested-but-ineffective startup readiness uses its exact existing readiness reason, not the
+runtime reason.
+
 Health and diagnostics must distinguish `requested`, `effective`, and `reason`, for example:
 
 ```json
@@ -200,6 +275,8 @@ Required automated coverage:
 - Missing extensions/indexes or failed smoke checks prevent effective hybrid mode.
 - A package compatibility mismatch keeps hybrid disabled.
 - Vector-only fallback uses vector scores and identifies its mode accurately.
+- Invalid filters are rejected before embeddings/SQL, and unsupported filters cannot be dropped from only one source or branch.
+- Detail lookup fails closed for disallowed, inactive, URL-less, or review-parent-invalid records.
 
 Evaluation set segments:
 

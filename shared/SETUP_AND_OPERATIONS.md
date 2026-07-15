@@ -100,6 +100,7 @@ HYBRID_BM25_WEIGHT=0.35
 HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
+HYBRID_VECTOR_MIN_SIMILARITY=0.25
 MAX_ALLOWED_SEARCH_IDS=1000
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 MAX_CONTENT_ITEM_BYTES=524288
@@ -114,6 +115,10 @@ MAX_METADATA_NESTING_DEPTH=4
 `AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.
 
 `HYBRID_SEARCH_ENABLED=false` is the required safe value during installation and upgrade. Hybrid is the expected production mode only after the compatibility, extension, migration, index, direct-query, and application gates below pass; then set it to `true` deliberately.
+
+The minimum similarity accepts `0..1`; the result limit defaults to `12` and accepts `1..100`.
+Weights accept `0..1`, require a positive combined value, and are normalized at runtime. Keep the RRF
+K, candidate multiplier, and candidate cap within `1..10000`, `1..20`, and `1..1000` respectively.
 
 Environment safety rules:
 
@@ -257,6 +262,7 @@ Track:
 - Embedding-provider model, errors, rate limits, and latency.
 - Indexing success/failure count and content counts by source key and kind.
 - BM25 candidate count, vector candidate count, fused-result count, and hybrid fallback count.
+- Alert on `bm25_runtime_error`; the affected request is vector-only and the next request retries BM25.
 - `pg_search`, pgvector, and required BM25-index health.
 - Database connection pool usage and slow queries.
 - Optional Redis availability and cache behavior.

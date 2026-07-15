@@ -78,6 +78,7 @@ HYBRID_BM25_WEIGHT=0.35
 HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
+HYBRID_VECTOR_MIN_SIMILARITY=0.25
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 MAX_CONTENT_ITEM_BYTES=524288
 MAX_METADATA_FIELDS=100
@@ -294,12 +295,24 @@ flowchart TD
 
 Structured predicates for allowed source keys, status, date, location, category, directory type, and approved metadata must apply consistently to both BM25 and vector branches. Vector similarity thresholds apply before fusion. Each branch is bounded by configured candidate limits, uses stable tie-breaking, and returns diagnostics without leaking raw private content.
 
+The exact SV-US-008 application input, filter grammar, metadata-key approval rule, score/result shape,
+review-parent requirements, candidate formula, and detail boundary are normative in
+[`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md). In particular, `retrieval_filter_keys` in persisted
+source context is the allowlist for generic metadata/date predicates; validated keys are JSON lookup
+parameters and never SQL identifiers. A source unable to honor a requested constraint is excluded
+rather than searched without that constraint.
+
 RRF is used because BM25 scores and cosine similarity have different scales:
 
 ```text
 fused_score = vector_weight / (rrf_k + vector_rank)
             + bm25_weight / (rrf_k + bm25_rank)
 ```
+
+The configured weights are normalized by their positive sum. Fused scores are normalized to `0..1`
+against the theoretical rank-one maximum. Stable source identity deduplicates branch results and is
+the final tie-breaker. Review evidence carries active parent identity and URL, while remaining a
+`review_evidence` result instead of a listing card.
 
 After fusion, application ranking may consider exact structured matches, date and distance fit, configured metadata, source freshness, review evidence, user preferences, and eligible featured/promotion signals. Promotion never makes an irrelevant item relevant.
 
@@ -403,6 +416,8 @@ For native PostgreSQL, inspect the host. For Docker, inspect inside the pinned d
 
 - A `pg_search` compatibility/readiness failure prevents hybrid mode; it is not silently ignored.
 - A runtime BM25 failure uses the documented vector-only degraded path and labels diagnostics accurately.
+- That runtime fallback is request-local, discards every BM25 contribution, reports
+  `bm25_runtime_error`, and retries BM25 on a later retrieval; it does not overwrite readiness state.
 - A vector/embedding failure must not be disguised as a successful semantic result.
 - An empty allowlist or no relevant evidence yields no candidates, not cross-source fallback.
 
@@ -435,6 +450,13 @@ Capture per request or job:
 - Cache hit/miss/error state.
 - Indexing outcome, skipped hash count, and embedding latency.
 - Active provider adapter, model, latency, normalized usage, and error category.
+
+Each retrieval writes a non-durable `content_retrieval` usage event with total latency,
+`retrieval_count`, success/error code, and metadata limited to effective mode, degradation reason,
+allowlist version, requested/result limits, source-kind count, BM25/vector/fused candidate counts, and
+branch latencies. It must not store query text, filters, result identities, public content, raw scores,
+embeddings, SQL, or provider identity. Usage-write failure is logged safely and cannot change a
+retrieval result.
 
 Diagnostics must report requested/effective hybrid mode, PostgreSQL version, `pg_search` and pgvector versions, preload state, required indexes, latest migration, package compatibility verification status, and last direct smoke-test result. Provider information belongs in runtime diagnostics and usage telemetry, not in core domain tables.
 

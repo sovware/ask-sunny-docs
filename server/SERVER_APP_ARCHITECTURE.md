@@ -70,6 +70,7 @@ HYBRID_BM25_WEIGHT=0.35
 HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
+HYBRID_VECTOR_MIN_SIMILARITY=0.25
 MAX_ALLOWED_SEARCH_IDS=1000
 MAX_ALLOWED_DATA_SOURCE_KEYS=1000
 MAX_CONTENT_ITEM_BYTES=524288
@@ -106,6 +107,11 @@ Model names are deployment configuration, not hardcoded constants. Verify the se
 The example connection URLs target native services. Docker Compose overrides their hosts with Compose service names such as `paradedb` and `redis`; application code and all other configuration remain identical.
 
 `HYBRID_SEARCH_ENABLED=false` is the safe installation and upgrade value. Hybrid is the intended normal production mode, but an operator changes the value to `true` only after the running PostgreSQL major version, execution OS, CPU architecture, and installed `pg_search` package/image are an exact supported match and every extension, migration, index, direct-query, and application verification passes. See [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md).
+
+Retrieval configuration bounds are enforced at startup: weights are `0..1` with a positive combined
+weight, RRF K is `1..10000`, the candidate multiplier is `1..20`, the candidate cap is `1..1000`,
+minimum vector similarity is `0..1`, and the result cap is `1..100`. Runtime normalizes the two
+weights by their sum before fusion.
 
 ## High-Level Server Flow
 
@@ -200,6 +206,11 @@ Retrieval order:
 4. Bound both candidate sets using the configured multiplier and maximum limit.
 5. Fuse results with reciprocal-rank fusion and the configured BM25/vector weights.
 6. Apply application ranking signals, deduplicate, and attach citations.
+
+SV-US-008 is an internal application/repository boundary consumed later by chat tools; it adds no
+installation-facing search route. Its normalized candidates, filters, review-parent linkage, scoring,
+fallback, telemetry, and detail-lookup contracts are fixed in
+[`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md).
 
 Hybrid search is the normal mode only after deployment verification and then executes BM25 plus vector retrieval for every eligible query. Before installing or loading `pg_search`, deployment must prove that the artifact matches the running PostgreSQL major version, execution OS/release, and CPU architecture. Native deployments inspect the PostgreSQL host; Docker deployments inspect the database container and record its pinned image digest. Startup/readiness must also verify both extensions, migrations, BM25 indexes, and direct BM25 smoke queries. If any compatibility fact is missing or mismatched, or another verification fails, hybrid must remain ineffective and `HYBRID_SEARCH_ENABLED=false`; diagnostics report the precise degraded reason and the service may use vector retrieval without pretending BM25 is active. Native and Docker deployment paths follow the same backup, verification, and rollback safety principles in [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md) and [`SETUP_AND_OPERATIONS.md`](../shared/SETUP_AND_OPERATIONS.md).
 
