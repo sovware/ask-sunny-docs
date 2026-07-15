@@ -143,6 +143,7 @@ HYBRID_RRF_K=60
 HYBRID_CANDIDATE_MULTIPLIER=3
 HYBRID_MAX_CANDIDATE_LIMIT=100
 HYBRID_VECTOR_MIN_SIMILARITY=0.25
+MAX_ALLOWED_SEARCH_IDS=1000
 MAX_RETRIEVAL_RESULTS=12
 ```
 
@@ -151,7 +152,7 @@ The first value is the safe installation and upgrade value. A verified normal pr
 The application accepts weights from `0` through `1`, requires at least one positive weight, and
 normalizes them by their sum before fusion. `HYBRID_RRF_K` accepts `1..10000`, the multiplier accepts
 `1..20`, the maximum candidate limit accepts `1..1000`, minimum cosine similarity accepts `0..1`,
-and `MAX_RETRIEVAL_RESULTS` accepts `1..100`. For a requested result limit `n`, each branch receives
+`MAX_ALLOWED_SEARCH_IDS` accepts `1..10000`, and `MAX_RETRIEVAL_RESULTS` accepts `1..100`. For a requested result limit `n`, each branch receives
 `min(HYBRID_MAX_CANDIDATE_LIMIT, n * HYBRID_CANDIDATE_MULTIPLIER)` candidates. A request cannot
 exceed `MAX_RETRIEVAL_RESULTS`.
 
@@ -193,6 +194,15 @@ predicate builder to its BM25 and vector statements. BM25 uses the exact normali
 the raw non-negative `pdb.score`; vector results use cosine similarity
 `1 - (embedding <=> query_embedding)` and apply the configured threshold before ranking. Branches
 sort score descending and then the stable tuple `(source_kind, data_source_key, source_id)` ascending.
+
+ParadeDB requires `pdb.score` to run in its supported simple search shape. Each source BM25 repository
+therefore first selects only `(search_key, score)` for the exact query, ordered by score/key and bounded
+by `MAX_ALLOWED_SEARCH_IDS`. It passes those keys/scores as typed array parameters to a second
+hydration statement that applies the persisted allowlist, active/URL rules, and the same structured
+predicate builder used by vector search. Only rows surviving hydration are candidates; the repository
+then applies the branch candidate limit. The raw key stage returns no content and cannot bypass the
+filtered hydration boundary. Reaching the search-ID cap is reported in safe diagnostics so operators
+can evaluate recall without logging the query or identities.
 
 The common candidate contains `source_kind`, `data_source_key`, `data_source_label`, `source_id`,
 `title`, `url`, `result_role`, compact public `matched_metadata`, and branch score/rank. Review
