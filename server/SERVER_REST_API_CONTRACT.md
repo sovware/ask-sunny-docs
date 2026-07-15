@@ -68,8 +68,15 @@ Response:
 ```json
 {
   "ok": true,
-  "api_key": "ask_live_xxxxx",
-  "key_prefix": "ask_live",
+  "api_key": "ask_live_7f3a91c24bd8e610_<random-secret>",
+  "key_prefix": "ask_live_7f3a91c24bd8e610",
+  "scopes": [
+    "retrieval:write",
+    "content:write",
+    "chat:write",
+    "conversations:read"
+  ],
+  "rotated_previous_key": false,
   "installation": {
     "domain": "example.com",
     "timezone": "UTC"
@@ -77,7 +84,34 @@ Response:
 }
 ```
 
-The backend stores only a hash of `api_key`.
+`domain` is a lower-case hostname without a scheme, port, path, query, or fragment.
+`wordpress_site_url` is an absolute HTTPS URL whose hostname exactly matches `domain`; subdirectory
+installations may retain a path, while query and fragment components are rejected. The backend trims
+the installation name, canonicalizes the identity, and creates the singleton installation record on
+first provisioning. Later requests must match that stored domain and WordPress site URL or return
+`409 installation_identity_conflict` without rotating a key.
+
+The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-secret>`. The unique
+`key_prefix` is the format through the key-id segment and may be logged for credential identification;
+the full API key and secret segment must never be logged. The backend stores only the SHA-256 digest
+of the complete high-entropy API key. A provisioned WordPress installation key receives exactly the
+listed server-defined scopes; the caller cannot add scopes in the request.
+
+Provisioning is also the rotation operation. The first successful request returns
+`rotated_previous_key: false`. A later successful request for the same canonical installation creates
+a new key, immediately revokes every prior active `wordpress_installation` key in the same database
+transaction, returns `rotated_previous_key: true`, and writes cross-referenced rotation metadata on
+the new and revoked rows. If any part of the transaction fails, the previous key remains active and
+no new key is issued. The plaintext key is returned only in this response and cannot be recovered.
+
+An invalid provisioning secret returns the same `401 authentication_error` used for invalid bearer
+credentials and performs no installation or key write. Provisioning-secret comparison is
+constant-time. Validation errors never echo the provisioning key, API key, or secret fragment.
+
+For protected routes, malformed, unknown, hash-mismatched, and revoked bearer keys all return the
+same `401 authentication_error`. An authenticated key missing a route's required scope returns
+`403 forbidden` without naming the missing scope. Only a fully authorized request updates
+`last_used_at`.
 
 ## Retrieval Configuration Routes
 
