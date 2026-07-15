@@ -468,6 +468,10 @@ Response:
 
 ### `POST /chat`
 
+Request validation, provider/tool policy, orchestration, grounding, failure persistence, and the
+exact successful response behavior are normative in
+[`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md).
+
 Runs one complete chat turn. The route returns one JSON response after retrieval and answer generation finish; it does not emit partial tokens or events.
 
 Request:
