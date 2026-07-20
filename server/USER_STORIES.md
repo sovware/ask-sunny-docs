@@ -454,7 +454,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 1. **Given** an active WordPress installation key with `operations:read`, **when** installation diagnostics or usage is requested, **then** only the safe operational projection required by the plugin is returned.
 2. **Given** an existing active WordPress installation key, **when** the scope migration runs, **then** `operations:read` is added idempotently without changing its secret, status, or other scopes.
 3. **Given** an installation key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative session or write authority.
-4. **Given** diagnostics or usage data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, source identities, raw errors, and admin-only deployment details are absent.
+4. **Given** diagnostics or usage data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, content-record identities, raw errors, and admin-only deployment details are absent while bounded counts may remain grouped by data-source key.
 5. **Given** a degraded dependency or bounded usage query, **when** the route responds, **then** it preserves the documented stable shape, validation, and correlation behavior.
 
 **Tasks**
