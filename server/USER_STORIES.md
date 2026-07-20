@@ -465,7 +465,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 - [ ] Document request, response, authorization, validation, privacy, and degraded-state contracts.
 - [ ] Add migration, provisioning, authorization, scoping, privacy, validation, route, and OpenAPI tests.
 
-**Dependencies:** SV-US-013  
+**Dependencies:** SV-US-013
 **Priority:** Must have
 
 ## Recommended Story Order
