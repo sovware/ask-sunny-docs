@@ -441,13 +441,40 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-012  
 **Priority:** Must have
 
+### SV-US-014 — Expose safe installation operations telemetry
+
+**Normative contracts:** [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`OPERATIONS_ADMIN_CONTRACT.md`](OPERATIONS_ADMIN_CONTRACT.md)
+
+**User story**
+
+> As a **WordPress administrator**, I want installation-scoped diagnostics and usage telemetry, so that I can operate the integration without receiving a backend administrator credential.
+
+**Acceptance criteria**
+
+1. **Given** an active WordPress installation key with `operations:read`, **when** installation diagnostics or usage is requested, **then** only the safe operational projection required by the plugin is returned.
+2. **Given** an existing active WordPress installation key, **when** the scope migration runs, **then** `operations:read` is added idempotently without changing its secret, status, or other scopes.
+3. **Given** an installation key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative session or write authority.
+4. **Given** diagnostics or usage data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, source identities, raw errors, and admin-only deployment details are absent.
+5. **Given** a degraded dependency or bounded usage query, **when** the route responds, **then** it preserves the documented stable shape, validation, and correlation behavior.
+
+**Tasks**
+
+- [ ] Add `operations:read` to new WordPress installation credentials and migrate active existing credential metadata idempotently.
+- [ ] Add `GET /installation/diagnostics` and `GET /installation/usage` behind installation authentication.
+- [ ] Reuse the operations service through explicit safe installation projections rather than exposing `/admin/*` responses directly.
+- [ ] Document request, response, authorization, validation, privacy, and degraded-state contracts.
+- [ ] Add migration, provisioning, authorization, scoping, privacy, validation, route, and OpenAPI tests.
+
+**Dependencies:** SV-US-013  
+**Priority:** Must have
+
 ## Recommended Story Order
 
 1. SV-US-001 → SV-US-004: service, database, authentication, and retrieval policy.
 2. SV-US-005 → SV-US-007: complete content-ingestion path.
 3. SV-US-008 → SV-US-009: retrieval, ranking, and citations.
 4. SV-US-010 and SV-US-011: durable conversation and grounded chat.
-5. SV-US-012 → SV-US-013: operations, security, resilience, and release.
+5. SV-US-012 → SV-US-014: operations, security, resilience, release, and WordPress-safe telemetry.
 
 ## Related Specifications
 

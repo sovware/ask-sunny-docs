@@ -14,8 +14,8 @@ Admin routes accept either:
   `admin:read` or `admin:write` scope; or
 - an unexpired opaque admin session created by `POST /admin/sessions` and sent as a bearer token.
 
-The launch provisioning route continues to create only `wordpress_installation` keys with exactly
-the four installation scopes. A valid installation key on an admin route returns the same generic
+The launch provisioning route continues to create only `wordpress_installation` keys with the
+server-defined installation scopes. A valid installation key on an admin route returns the same generic
 `403 forbidden` as any authenticated wrong-scope key and does not fall back to session parsing.
 Malformed, unknown, hash-mismatched, expired, disabled-user, and revoked credentials return the
 generic `401 authentication_error`. Only successful authorization updates key/session last-use.
@@ -31,6 +31,11 @@ The session token format is `ask_admin_session_<43 base64url characters>`. Admin
 and rotation remain an operator-controlled secret-management operation outside the public HTTP API.
 
 Read routes require `admin:read`; reindex creation requires `admin:write`.
+
+WordPress installation operations are a separate boundary. Active `wordpress_installation` keys
+receive `operations:read`; this scope authorizes only `GET /installation/diagnostics` and
+`GET /installation/usage`. The migration adds the scope idempotently to existing active installation
+credential metadata without rotating credentials. It does not authorize any `/admin/*` route.
 
 ## 3. Diagnostics
 
@@ -70,6 +75,19 @@ fallback count. Aggregation reads the existing safe `usage_events` columns/metad
 selects or returns conversation message content, tool arguments/results, visitor identities,
 source/result identities, query/filter text, raw metadata, provider name/model, or provider state.
 Provider identity remains runtime diagnostic/ephemeral metric context and is not added to usage rows.
+
+The installation usage route applies the same validation and aggregation but returns only the safe
+projection for the authenticated WordPress installation. It never returns identities, messages,
+queries, filters, source/result identities, raw metadata, provider bodies, or administrative session
+state.
+
+## 4.1 Installation Diagnostics Projection
+
+`GET /installation/diagnostics` reuses the operational probes but explicitly projects only service
+version and dependency status; selected AI and embedding configuration; ParadeDB, vector, BM25, and
+requested/effective hybrid state; retrieval-configuration version/update time; content counts; and
+the latest safe indexing time/outcome. It excludes credentials, URLs, pool internals, package paths,
+raw errors, deployment secrets, visitor/conversation data, and administrative controls.
 
 ## 5. Reindex Coordination
 

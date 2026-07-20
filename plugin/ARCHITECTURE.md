@@ -14,6 +14,8 @@ The plugin is responsible for:
 - Rendering/enqueuing the chatbot widget on public pages.
 - Proxying browser chat requests to the backend.
 - Keeping backend secrets out of browser JavaScript.
+- Reading safe backend diagnostics and usage through installation-scoped `operations:read` routes;
+  the plugin never stores or uses a backend administrator credential.
 
 ## Plugin Structure
 
@@ -246,6 +248,10 @@ The Data Sources submenu should include:
 - An explicit **Delete indexed data** action on each item and a destructive **Delete all indexed data** action for each source tab, both protected by confirmation and `manage_options`.
 - Diagnostics.
 - Recent usage summary fetched from backend.
+
+Backend diagnostics and usage use `GET /installation/diagnostics` and
+`GET /installation/usage` with the installation credential. The plugin must not call `/admin/*`,
+store an admin key/session, or expose the installation key to browser code.
 
 The Test Chat submenu should render the production widget component in an isolated admin preview and send messages through an admin-only WordPress REST route. It displays connection/provider/hybrid-search diagnostics, request correlation ID, latency, answer, citations, recommendations, and sanitized errors. Test conversations use the backend `admin_test` channel and must not bypass the same response validation or source allowlist used by public chat.
 
