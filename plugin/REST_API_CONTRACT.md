@@ -386,7 +386,10 @@ Returns local indexing status.
 
 ### `GET /diagnostics`
 
-Checks WordPress-side and backend health.
+Checks WordPress-side state and the backend's installation-scoped diagnostics. WordPress calls
+backend `GET /installation/diagnostics` with the installation credential; it never calls a backend
+`/admin/*` route or stores a backend administrator credential. Recent usage is fetched separately
+from backend `GET /installation/usage` and reduced to the same safe aggregates for the dashboard.
 
 ```json
 {
@@ -408,6 +411,15 @@ Checks WordPress-side and backend health.
     "directorist:events": 80,
     "directorist:events:reviews": 125,
     "wordpress:post": 35
+  },
+  "recent_usage": {
+    "from": "2026-07-13T00:00:00Z",
+    "to": "2026-07-20T00:00:00Z",
+    "events": 150,
+    "successes": 147,
+    "errors": 3,
+    "average_latency_ms": 420,
+    "p95_latency_ms": 900
   }
 }
 ```

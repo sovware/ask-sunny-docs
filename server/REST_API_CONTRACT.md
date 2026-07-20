@@ -74,7 +74,8 @@ Response:
     "retrieval:write",
     "content:write",
     "chat:write",
-    "conversations:read"
+    "conversations:read",
+    "operations:read"
   ],
   "rotated_previous_key": false,
   "installation": {
@@ -96,6 +97,10 @@ The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-se
 the full API key and secret segment must never be logged. The backend stores only the SHA-256 digest
 of the complete high-entropy API key. A provisioned WordPress installation key receives exactly the
 listed server-defined scopes; the caller cannot add scopes in the request.
+
+The migration that introduces `operations:read` adds it idempotently to every active
+`wordpress_installation` credential's stored scope metadata. It does not rotate or reveal the
+credential, change its status, or grant access to `/admin/*` routes.
 
 Provisioning is also the rotation operation. The first successful request returns
 `rotated_previous_key: false`. A later successful request for the same canonical installation creates
@@ -594,6 +599,62 @@ Missing, mismatched, deleted, and malformed conversation IDs share:
     "code": "conversation_not_found",
     "message": "The conversation was not found."
   }
+}
+```
+
+## Installation Operations Routes
+
+These routes require an active WordPress installation credential with `operations:read`. They are
+safe, read-only projections for the WordPress plugin and do not accept an admin key/session in place
+of installation authentication. Installation credentials remain forbidden from every `/admin/*`
+route.
+
+### `GET /installation/diagnostics`
+
+Returns the bounded operational state needed by WordPress without credentials, URLs, visitor or
+conversation data, query/content text, raw errors, pool details, package-install coordinates, or
+other admin-only deployment data.
+
+```json
+{
+  "ok": true,
+  "service": {"version": "1.0.0", "database": "ok", "redis": "disabled"},
+  "ai": {
+    "provider": "openai",
+    "configured": true,
+    "embedding_provider": "openai",
+    "embedding_model": "text-embedding-3-small"
+  },
+  "search": {
+    "paradedb": "ok",
+    "pg_search": "ok",
+    "vector": "ok",
+    "bm25_indexes": "ok",
+    "hybrid_search": {"requested": true, "effective": true, "status": "enabled", "reason": null}
+  },
+  "retrieval_config": {"version": 6, "updated_at": "2026-07-13T10:30:00Z"},
+  "content_counts": {"directorist:events": 80, "wordpress:post": 35},
+  "last_indexed_at": "2026-07-13T10:30:00Z",
+  "latest_indexing_outcome": "indexed"
+}
+```
+
+Dependency probe failures preserve this shape with safe `unavailable` or `degraded` values and a
+stable reason. The projection is read-only and bounded to the provisioned installation's data.
+
+### `GET /installation/usage`
+
+Uses the same `from`, `to`, and optional `event_type` validation as `GET /admin/usage`, including the
+92-day maximum range. It returns only the installation's totals and UTC daily buckets from the safe
+usage projection documented in the operations contract.
+
+```json
+{
+  "from": "2026-07-01T00:00:00Z",
+  "to": "2026-07-20T00:00:00Z",
+  "event_type": null,
+  "totals": {"events": 150, "successes": 147, "errors": 3, "average_latency_ms": 420, "p95_latency_ms": 900},
+  "daily": []
 }
 ```
 
