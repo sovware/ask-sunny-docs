@@ -52,7 +52,7 @@ identity, `channel`, and a validated application `correlation_id`. In one transa
 `CONVERSATION_SUMMARY_MAX_CHARS` defaults to `4000` and accepts `100..20000`. The summary is
 provider-neutral application text. A summary update longer than the configured bound is rejected;
 it is never silently truncated. Recent messages include `user`, `assistant`, `system`, and `tool`
-roles, citations, safe metadata, and creation time. A non-negative `sequence_number` preserves the
+roles, recommendations, follow-up questions, safe metadata, and creation time. A non-negative `sequence_number` preserves the
 caller's message order within a turn because PostgreSQL transaction timestamps are identical for
 rows completed together. The query selects newest `limit + 1` by
 `(created_at, sequence_number, id)`, reports truncation, retains only `limit`, then returns them
@@ -108,7 +108,7 @@ messages, then makes `sequence_number` non-null with a non-negative check. Conve
 a deleted conversation.
 
 `completeTurn` requires the owned active conversation, the server-issued processing turn ID, status
-`succeeded|failed`, non-negative integer latency, ordered messages, citations, tool calls, safe usage,
+`succeeded|failed`, non-negative integer latency, ordered messages, recommendations, follow-up questions, tool calls, safe usage,
 and optional summary/title updates. One database transaction:
 
 - locks and verifies the conversation and processing turn;
@@ -125,14 +125,14 @@ otherwise conflicts.
 
 Messages are bounded to 100 per turn and 20,000 UTF-16 code units each. Their input array order is
 durable and is never inferred from UUID ordering. Tool calls are bounded to 50 per turn; tool
-name/correlation/error strings use stable server-owned grammars. Citations, message
+name/correlation/error strings use stable server-owned grammars. Recommendations, follow-up questions, message
 metadata, tool arguments/results, turn metadata, and checkpoint JSON each serialize to at most
 `CONVERSATION_AUDIT_JSON_BYTES`, default `65536`, accepted range `1024..1048576`. Token/retrieval
 counts and latency are non-negative safe integers.
 
 Accepted audit objects are strict. The recursively prohibited keys `provider`, `provider_name`,
 `provider_id`, `provider_response_id`, `provider_conversation_id`, `response_id`, and `model` are
-rejected from conversation, turn, message, tool, citation, usage, and checkpoint metadata. Provider
+rejected from conversation, turn, message, tool, recommendation, usage, and checkpoint metadata. Provider
 identity may exist only in ephemeral logs/metrics; application tables contain no provider
 discriminator or provider-hosted state.
 
@@ -177,7 +177,7 @@ controls later.
 
 - sets `status=deleted`, `deleted_at=NOW()`, `anonymized_at=NOW()`, clears identity columns, title,
   summary, and conversation metadata;
-- replaces message content with `[deleted]` and clears citations/metadata/token counts;
+- replaces message content with `[deleted]` and clears recommendations, follow-up questions, metadata, and token counts;
 - clears tool arguments/results while retaining tool name, status, latency, and safe error code;
 - clears turn metadata while retaining status, timing, correlation, and safe error code;
 - nulls direct identity fields and clears metadata on related usage rows;
@@ -212,7 +212,7 @@ checkpoints.
 - Completed-turn mismatch or checkpoint ID reuse with different state: `409` conflict.
 - Database unavailable: `503 conversation_unavailable`; do not invent empty history or successful
   persistence.
-- No operation logs visitor identity, message content, summary, citations, tool arguments/results,
+- No operation logs visitor identity, message content, summary, recommendations, follow-up questions, tool arguments/results,
   checkpoint state, or provider data.
 
 ## 9. Verification

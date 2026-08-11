@@ -42,19 +42,18 @@ A successful turn returns `200` and exactly:
   "message_id": "uuid",
   "answer": "Complete user-facing text.",
   "recommendations": [],
-  "citations": [],
   "follow_up_questions": []
 }
 ```
 
-`recommendations` and `citations` use the complete public shapes from
+`recommendations` uses the complete public shape from
 [`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md). The arrays are always
 present. `follow_up_questions` is always present, contains at most three unique non-empty strings,
 and is empty when no next question is useful. `message_id` is the persisted assistant message ID,
 not a provider response ID.
 
-A clarification is a successful turn with one useful question in `answer`, empty recommendations
-and citations, and the same question as the only `follow_up_questions` member. A no-evidence result
+A clarification is a successful turn with one useful question in `answer`, empty recommendations,
+and the same question as the only `follow_up_questions` member. A no-evidence result
 is also successful: it states that approved site content did not provide enough evidence, contains
 no unsupported factual claim, and returns empty grounded arrays.
 
@@ -80,7 +79,7 @@ The normalized adapter result is one of:
 ```
 
 ```json
-{ "kind": "final", "output": { "answer": "...", "citation_ids": [], "recommendation_ids": [], "follow_up_questions": [] }, "usage": {} }
+{ "kind": "final", "output": { "answer": "...", "recommendation_ids": [], "follow_up_questions": [] }, "usage": {} }
 ```
 
 Tool call IDs exist only in memory for the active request and in provider-neutral tool audit data
@@ -184,11 +183,11 @@ The graph has these named nodes in order, with conditional edges where stated:
 6. `retrieve_content`: execute the bounded registered tool loop. Re-intersect policy per call and
    stop after `MAX_TOOL_ITERATIONS` total calls.
 7. `rank_and_filter`: pass retrieved candidates to the SV-US-009 ranker and retain its canonical
-   recommendations, citations, disclosures, volatile details, and uncertainties.
+   recommendations, disclosures, volatile details, and uncertainties.
 8. `generate_answer`: return a deterministic clarification/no-evidence response when applicable;
    otherwise request a strict final provider response against the ranked evidence.
-9. `persist_turn`: validate grounding, write the user and assistant messages, tool audits, citations,
-   normalized usage, status, and provider-neutral graph checkpoint through `completeTurn` and the
+9. `persist_turn`: validate grounding, write the user and assistant messages, full recommendations,
+   follow-up questions, tool audits, normalized usage, status, and provider-neutral graph checkpoint through `completeTurn` and the
    checkpoint boundary.
 
 Each graph invocation supplies `{ configurable: { thread_id } }`. The workflow does not use
@@ -205,12 +204,11 @@ asks exactly one concise question and never invents the missing value.
 The provider final schema contains only:
 
 - `answer`: bounded non-empty user-facing text;
-- `citation_ids`: unique IDs drawn from the current ranker output;
 - `recommendation_ids`: unique stable identities drawn from the current ranker output;
 - `follow_up_questions`: at most three bounded strings.
 
-The server, not the model, constructs public citation and recommendation objects. Unknown IDs are
-invalid. The answer must not introduce a URL outside the selected current citations and must not
+The server, not the model, constructs public recommendation objects. Unknown IDs are invalid. The
+answer must not introduce a URL outside the selected current recommendations and must not
 assert an item or volatile fact that the selected ranked evidence labels uncertain. A malformed
 response, unknown reference, unsupported URL, or missing evidence for a factual recommendation
 fails the grounding gate; it is never returned as a successful answer.

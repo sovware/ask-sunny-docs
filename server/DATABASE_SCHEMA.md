@@ -36,6 +36,14 @@ CREATE TABLE installation_config (
 CREATE INDEX installation_allowed_data_sources_gin_idx
 ON installation_config USING GIN (allowed_data_source_keys);
 
+CREATE TABLE installation_domains (
+  domain TEXT PRIMARY KEY,
+  wordpress_site_url TEXT NOT NULL UNIQUE,
+  installation_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   key_prefix TEXT NOT NULL UNIQUE,
@@ -69,10 +77,12 @@ digest of the complete high-entropy API key. The digest is used only after the p
 candidate row and is compared in constant time. Plaintext keys are never persisted.
 
 The `metadata` object for a WordPress installation key contains its fixed `scopes`, a
-`rotation_id`, and either `rotated_from_key_ids` on the newly issued key or `revocation_reason` plus
-`replaced_by_key_id` on keys revoked by rotation. Provisioning/rotation atomically upserts the
-singleton installation identity, inserts the new key, and revokes every previously active
-`wordpress_installation` key. A failed transaction must leave the prior credential active.
+canonical `domain`, `wordpress_site_url`, `rotation_id`, and either `rotated_from_key_ids` on the
+newly issued key or `revocation_reason` plus `replaced_by_key_id` on keys revoked by rotation.
+Provisioning/rotation atomically upserts the domain registry row, ensures the singleton
+`installation_config` row exists for shared settings, inserts the new key, and revokes every
+previously active `wordpress_installation` key for the same canonical domain only. Credentials for
+other registered domains remain active. A failed transaction must leave the prior credential active.
 
 ## Data Source Metadata
 
@@ -396,7 +406,8 @@ CREATE TABLE conversation_messages (
   content TEXT NOT NULL,
   token_input_count INTEGER NULL,
   token_output_count INTEGER NULL,
-  citations JSONB NOT NULL DEFAULT '[]'::jsonb,
+  recommendations JSONB NOT NULL DEFAULT '[]'::jsonb,
+  follow_up_questions JSONB NOT NULL DEFAULT '[]'::jsonb,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -88,9 +88,9 @@ Response:
 `domain` is a lower-case hostname without a scheme, port, path, query, or fragment.
 `wordpress_site_url` is an absolute HTTPS URL whose hostname exactly matches `domain`; subdirectory
 installations may retain a path, while query and fragment components are rejected. The backend trims
-the installation name, canonicalizes the identity, and creates the singleton installation record on
-first provisioning. Later requests must match that stored domain and WordPress site URL or return
-`409 installation_identity_conflict` without rotating a key.
+the installation name, canonicalizes the identity, and registers that domain for the singleton
+backend. Later requests may register additional canonical domains served by the same backend; each
+domain receives and rotates its own credential without revoking credentials for other domains.
 
 The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-secret>`. The unique
 `key_prefix` is the format through the key-id segment and may be logged for credential identification;
@@ -102,12 +102,13 @@ The migration that introduces `operations:read` adds it idempotently to every ac
 `wordpress_installation` credential's stored scope metadata. It does not rotate or reveal the
 credential, change its status, or grant access to `/admin/*` routes.
 
-Provisioning is also the rotation operation. The first successful request returns
-`rotated_previous_key: false`. A later successful request for the same canonical installation creates
-a new key, immediately revokes every prior active `wordpress_installation` key in the same database
-transaction, returns `rotated_previous_key: true`, and writes cross-referenced rotation metadata on
-the new and revoked rows. If any part of the transaction fails, the previous key remains active and
-no new key is issued. The plaintext key is returned only in this response and cannot be recovered.
+Provisioning is also the rotation operation for a canonical domain. The first successful request for
+a domain returns `rotated_previous_key: false`. A later successful request for the same canonical
+domain creates a new key, immediately revokes every prior active `wordpress_installation` key for
+that domain in the same database transaction, returns `rotated_previous_key: true`, and writes
+cross-referenced rotation metadata on the new and revoked rows. If any part of the transaction
+fails, the previous key remains active and no new key is issued. The plaintext key is returned only
+in this response and cannot be recovered.
 
 An invalid provisioning secret returns the same `401 authentication_error` used for invalid bearer
 credentials and performs no installation or key write. Provisioning-secret comparison is
@@ -508,10 +509,10 @@ fusion score, detail exclusions, and vector-only fallback are normative in
 [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md). Neither boundary accepts raw SQL, a provider/model,
 an embedding, or caller authority to expand the persisted allowlist.
 
-SV-US-009 likewise adds no public endpoint. Its internal `rank_and_cite` boundary consumes only the
+SV-US-009 likewise adds no public endpoint. Its internal `rank_recommendations` boundary consumes only the
 allowlist-scoped candidates above and follows
 [`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md). The later chat route exposes
-its recommendation, citation, disclosure, and uncertainty fields without accepting caller-supplied
+its recommendation, disclosure, and uncertainty fields without accepting caller-supplied
 source URLs or authority.
 
 Response:
@@ -539,19 +540,6 @@ Response:
         "quality_score": 0.4,
         "promotion_score": 0
       }
-    }
-  ],
-  "citations": [
-    {
-      "title": "Community Workshop",
-      "url": "https://example.com/events/community-workshop",
-      "source_kind": "directorist_listing",
-      "data_source_key": "directorist:events",
-      "data_source_label": "Event Directory",
-      "source_id": "2001",
-      "citation_id": "citation-1",
-      "claim_ids": ["claim-1"],
-      "evidence_role": "primary"
     }
   ],
   "follow_up_questions": []
@@ -583,7 +571,8 @@ Response:
       "id": "uuid",
       "role": "user",
       "content": "What can we do this Saturday?",
-      "citations": [],
+      "recommendations": [],
+      "follow_up_questions": [],
       "created_at": "2026-07-06T12:00:00Z"
     }
   ],

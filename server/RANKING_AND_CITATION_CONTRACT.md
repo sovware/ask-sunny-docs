@@ -1,9 +1,9 @@
-# Ranking And Citation Contract
+# Ranking And Recommendation Contract
 
 ## 1. Scope
 
 This document is the normative launch contract for SV-US-009. It defines the internal
-`rank_and_cite` application boundary consumed later by the chat workflow. It does not add an
+`rank_recommendations` application boundary consumed later by the chat workflow. It does not add an
 installation-facing HTTP route and it does not let a caller or model widen the persisted retrieval
 allowlist.
 
@@ -14,8 +14,8 @@ new committed evaluation baseline.
 ## 2. Inputs And Trust Boundary
 
 The boundary accepts only candidates returned by the allowlist-scoped SV-US-008 retrieval service,
-the normalized query and filters used for that retrieval, optional factual claim/source references,
-and optional volatile-detail requirements. It must not accept raw database rows, SQL, arbitrary
+the normalized query and filters used for that retrieval and optional volatile-detail requirements.
+It must not accept raw database rows, SQL, arbitrary
 URLs, or caller assertions that a source is allowed.
 
 Retrieval candidates are enriched with these safe ranking fields:
@@ -141,14 +141,14 @@ Before output, candidates deduplicate first by stable source tuple and then by c
 keeping the earlier candidate in the policy order. A valid target uses `http` or `https`, has a
 non-empty hostname, contains no username or password, drops its fragment, removes a default port,
 lowercases scheme and hostname, and serializes through the standard URL parser. An invalid target is
-removed from recommendations and citations. Query strings are retained because a source may require
+removed from recommendations. Query strings are retained because a source may require
 them for its direct public page.
 
 ## 4. Review Evidence Aggregation
 
 A review is never a recommendation card. Review evidence groups by the parent listing stable tuple.
 If the parent listing is already a candidate, its retrieved reviews contribute the review quality
-signal and remain separately citable. If it is absent, the ranker may create one parent listing
+signal. If it is absent, the ranker may create one parent listing
 candidate from the review's already validated `parent` identity/title/URL; its retrieval, exact, and
 structured signals come from the best-ranked review in that group. Duplicate reviews count once by
 review stable tuple, and no more than the bounded retrieved review set contributes.
@@ -191,20 +191,7 @@ It never cites featured or promotion state as the reason for relevance.
 configured featured label; `type=promotion:<key>` uses the matching promotion disclosure. Internal
 scores are safe product diagnostics but contain no query, content, raw metadata, or provider data.
 
-## 6. Citations And Unsupported Claims
-
-A factual claim reference has a caller-owned `claim_id` and one or more exact stable source tuples.
-The citation assembler resolves those tuples only against the valid retrieval/review evidence set
-received by this boundary. It cannot construct a citation from caller-supplied title or URL data.
-
-Each deduplicated citation contains `citation_id` (`citation-1`, `citation-2`, ... in stable source
-tuple order), `claim_ids`, `source_kind`, `data_source_key`, `data_source_label`, `source_id`, `title`,
-`url`, and `evidence_role=primary|review`. A review may be cited directly while its parent remains the
-recommendation card. Claim IDs with no valid resolved source appear in `unsupported_claim_ids`; the
-later answer workflow must remove, qualify, or regenerate those claims rather than present them as
-facts.
-
-## 7. Uncertainty
+## 6. Uncertainty
 
 The caller may request any of `date`, `availability`, and `operating_hours` for each candidate. The
 ranker emits a `volatile_details` member with exactly `field`, `status="confirmed"`, `value`, and
@@ -218,7 +205,7 @@ Missing, invalid, stale, or conflicting evidence produces an uncertainty object 
 An uncertain field has no invented `value`. Recommendation reasons never assert an uncertain
 volatile detail. The later answer workflow must preserve these labels and direct source links.
 
-## 8. Internal Response
+## 7. Internal Response
 
 The application boundary returns:
 
@@ -226,8 +213,6 @@ The application boundary returns:
 {
   "policy_version": "ask-sunny-ranking-v1",
   "recommendations": [],
-  "citations": [],
-  "unsupported_claim_ids": [],
   "diagnostics": {
     "input_candidates": 0,
     "valid_evidence": 0,
@@ -242,17 +227,17 @@ The application boundary returns:
 The boundary is pure and deterministic when supplied a clock. No public route is added until the
 SV-US-011 chat contract uses it.
 
-## 9. Evaluation Set And Release Gate
+## 8. Evaluation Set And Release Gate
 
 The repository stores a reviewed `evaluation/ranking-launch-v1.json` fixture set. Every case includes
-a stable ID, query, filters, candidates, expected ordered recommendation tuples, optional claim
-references, and expected uncertainties/disclosures. It contains exact-title, semantic, date,
+a stable ID, query, filters, candidates, expected ordered recommendation tuples, and expected
+uncertainties/disclosures. It contains exact-title, semantic, date,
 location, category, amenity, metadata, freshness, review-parent, featured/promotion, duplicate,
-invalid-URL, citation, zero-result, and insufficient-evidence cases.
+invalid-URL, zero-result, and insufficient-evidence cases.
 
 The deterministic evaluator commits `evaluation/ranking-launch-v1-baseline.json` with fixture count,
-top-1 accuracy, top-3 recall, citation correctness, promotion inversions, structured-filter
+top-1 accuracy, top-3 recall, promotion inversions, structured-filter
 violations, invalid recommendation targets, and uncertainty correctness. SV-US-009 cannot complete
-unless top-1 accuracy, top-3 recall, citation correctness, and uncertainty correctness are `1`, and
+unless top-1 accuracy, top-3 recall, and uncertainty correctness are `1`, and
 promotion inversions, filter violations, and invalid targets are `0`. Any future policy change must
 update the policy version, reviewed fixtures, and baseline together.

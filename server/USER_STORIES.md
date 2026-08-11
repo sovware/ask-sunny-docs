@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-Deliver a production-ready Bun/Hono backend that runs natively or through optional Docker Compose, securely accepts WordPress content, uses ParadeDB BM25 + pgvector as the normal production retrieval mode only after a mandatory package compatibility gate, runs grounded multi-turn conversations through LangGraph and a runtime-selected provider abstraction, and returns complete answers with citations and recommendation cards.
+Deliver a production-ready Bun/Hono backend that runs natively or through optional Docker Compose, securely accepts WordPress content, uses ParadeDB BM25 + pgvector as the normal production retrieval mode only after a mandatory package compatibility gate, runs grounded multi-turn conversations through LangGraph and a runtime-selected provider abstraction, and returns complete answers with recommendation cards and follow-up questions.
 
 This plan is self-contained. It defines all backend contract, implementation, test, security, and operational work required for the server release.
 
@@ -279,7 +279,7 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 
 1. **Given** candidates that differ in constraint match and promotion status, **when** ranking runs, **then** semantic and exact constraint relevance outrank featured or configured promotion signals.
 2. **Given** a recommendation, **when** it is returned, **then** it contains a stable source key, direct public URL, title, and evidence-based match reason.
-3. **Given** a factual statement supported by retrieved content, **when** the answer payload is assembled, **then** a citation maps it to an allowed stored source.
+3. **Given** a recommendation supported by retrieved content, **when** the answer payload is assembled, **then** its card maps to an allowed stored source.
 4. **Given** uncertain dates, availability, or operating details, **when** evidence is insufficient, **then** the result is labeled uncertain rather than invented.
 5. **Given** duplicate candidates or invalid URLs, **when** ranking completes, **then** duplicates and invalid recommendation targets are removed.
 
@@ -288,16 +288,16 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 - [ ] Define and version the launch ranking policy.
 - [ ] Implement exact-match, semantic, date, location, category, metadata, freshness, review, featured, and configured-promotion signals.
 - [ ] Implement review-evidence aggregation to parent listings.
-- [ ] Build citation and recommendation-card assemblers.
+- [ ] Build the recommendation-card assembler.
 - [ ] Add uncertainty and configured disclosure metadata.
 - [ ] Create a retrieval evaluation set and baseline relevance metrics.
-- [ ] Add ordering, deduplication, URL, citation, and disclosure tests.
+- [ ] Add ordering, deduplication, URL, recommendation-target, and disclosure tests.
 
 **Dependencies:** SV-US-008  
 **Priority:** Must have
 
 The normative launch score, promotion/disclosure configuration, review aggregation, recommendation,
-citation, uncertainty, deduplication, and evaluation contracts are defined in
+recommendation, uncertainty, deduplication, and evaluation contracts are defined in
 [`RANKING_AND_CITATION_CONTRACT.md`](RANKING_AND_CITATION_CONTRACT.md).
 
 ## Epic 5 — Conversation and Grounded Answers
@@ -313,13 +313,13 @@ citation, uncertainty, deduplication, and evaluation contracts are defined in
 1. **Given** a new anonymous or logged-in chat request, **when** the first turn starts, **then** a durable conversation and LangGraph thread are created.
 2. **Given** a valid conversation ID belonging to the same visitor identity, **when** a follow-up arrives, **then** recent messages and relevant summary context are loaded.
 3. **Given** a conversation belonging to another identity, **when** access is attempted, **then** no history or existence details are disclosed.
-4. **Given** a successful or failed turn, **when** processing ends, **then** messages, citations, tool calls, application correlation IDs, usage, latency, and status are auditable without provider-specific identifiers.
+4. **Given** a successful or failed turn, **when** processing ends, **then** messages, recommendations, follow-up questions, tool calls, application correlation IDs, usage, latency, and status are auditable without provider-specific identifiers.
 5. **Given** a process restart during later use, **when** the conversation resumes, **then** durable messages and PostgreSQL-backed graph state remain available.
 
 **Tasks**
 
 - [ ] Implement conversation creation, identity binding, ownership checks, and history loading.
-- [ ] Implement message, citation, tool-call, usage, and error persistence.
+- [ ] Implement message-output, tool-call, usage, and error persistence.
 - [ ] Configure PostgreSQL-backed LangGraph checkpoints separately from audit tables.
 - [ ] Implement history retrieval with authorization.
 - [ ] Add soft deletion, anonymization, and retention service boundaries.
@@ -345,7 +345,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 1. **Given** a valid message, **when** the chat workflow runs, **then** it loads context, extracts intent and constraints, selects allowed sources, retrieves evidence, ranks results, generates the answer, and persists the turn.
 2. **Given** a request missing a material constraint, **when** a reliable answer cannot be produced, **then** the response asks one useful clarification instead of inventing an assumption.
 3. **Given** model-selected tools or source keys, **when** tools run, **then** only registered server-owned tools execute and every source key is constrained by the stored allowlist.
-4. **Given** a successful turn, **when** `POST /chat` returns, **then** one non-streaming JSON payload contains the conversation ID, message ID, answer, citations, recommendations, and optional follow-up questions.
+4. **Given** a successful turn, **when** `POST /chat` returns, **then** one non-streaming JSON payload contains the conversation ID, message ID, answer, recommendations, and optional follow-up questions.
 5. **Given** a retrieval, model, schema, or timeout failure, **when** the turn ends, **then** the server returns a stable friendly error/fallback, persists the failure, and does not present unsupported claims.
 6. **Given** caller-supplied SQL, model overrides, raw tool names, or allowed-source settings, **when** validation runs, **then** those values cannot alter server policy or execution.
 7. **Given** `AI_PROVIDER=openai`, **when** a turn runs, **then** the OpenAI adapter uses only OpenAI environment configuration and returns the common internal response shape.
@@ -468,13 +468,33 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-013
 **Priority:** Must have
 
+### SV-US-015 — Preserve complete conversation message outputs
+
+**Normative contracts:** [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`CONVERSATION_CONTEXT_CONTRACT.md`](CONVERSATION_CONTEXT_CONTRACT.md), [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md)
+
+**User story**
+
+> As a **returning visitor**, I want restored assistant messages to include their recommendations and follow-up questions, so that conversation history matches the original chat response.
+
+**Acceptance criteria**
+
+1. **Given** a completed assistant turn, **when** it is persisted, **then** its full recommendation objects and follow-up questions are stored with the message.
+2. **Given** an owned conversation, **when** history is requested, **then** every message includes `recommendations` and `follow_up_questions` arrays.
+3. **Given** a successful chat response, **when** it is returned, **then** it contains recommendations and follow-up questions without a duplicate citation collection.
+4. **Given** an existing database, **when** the forward migration runs, **then** usable legacy source entries are retained as recommendation cards and the obsolete citation column is removed.
+5. **Given** the WordPress widget restores history, **when** assistant messages render, **then** recommendations and follow-up prompts match live-turn rendering.
+
+**Dependencies:** SV-US-011
+**Priority:** Must have
+
 ## Recommended Story Order
 
 1. SV-US-001 → SV-US-004: service, database, authentication, and retrieval policy.
 2. SV-US-005 → SV-US-007: complete content-ingestion path.
-3. SV-US-008 → SV-US-009: retrieval, ranking, and citations.
+3. SV-US-008 → SV-US-009: retrieval, ranking, and recommendation projection.
 4. SV-US-010 and SV-US-011: durable conversation and grounded chat.
 5. SV-US-012 → SV-US-014: operations, security, resilience, release, and WordPress-safe telemetry.
+6. SV-US-015: complete conversation message restoration.
 
 ## Related Specifications
 
