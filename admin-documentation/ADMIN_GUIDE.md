@@ -196,8 +196,6 @@ Test in a private browser window and while signed in:
 9. Open **Connection** and run **Test Connection** only after confirming the backend and credentials are available.
 10. Inspect Data Sources for failed or unexpectedly unindexed content.
 
-For backend upgrades, follow the [deployment flow](../shared/SETUP_AND_OPERATIONS.md#deployment-flow). For rollback and recovery, follow [Backup and Recovery](../shared/SETUP_AND_OPERATIONS.md#backup-and-recovery). Validate releases against the [Production Release Contract](../server/PRODUCTION_RELEASE_CONTRACT.md).
-
 ## 11. Deactivation and uninstall
 
 Deactivation stops scheduled Ask Sunny work and clears the reindex lock, while preserving settings, queue/index state, and content metadata for reactivation.
