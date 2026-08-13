@@ -4,7 +4,7 @@
 
 Before installation:
 
-1. Confirm the site meets the [supported compatibility matrix](../docs/COMPATIBILITY.md).
+1. Confirm the site uses PHP 7.4–8.4 and WordPress 6.5–7.0.x.
 2. Install and activate Directorist 8.8 or newer.
 3. Obtain the Ask Sunny backend URL, provisioning key, and OpenAI API key from the responsible service operators.
 4. Confirm the WordPress server can make outbound HTTPS requests to the backend.
