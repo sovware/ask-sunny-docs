@@ -63,24 +63,24 @@ Future-facing requirements:
 
 ### Planning
 
-- [`task-planning/SERVER_TASK_PLAN.md`](task-planning/SERVER_TASK_PLAN.md): standalone backend plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
-- [`task-planning/PLUGIN_TASK_PLAN.md`](task-planning/PLUGIN_TASK_PLAN.md): standalone WordPress plugin plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
+- [`server/USER_STORIES.md`](server/USER_STORIES.md): standalone backend plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
+- [`plugin/USER_STORIES.md`](plugin/USER_STORIES.md): standalone WordPress plugin plan organized by user story, Given–When–Then acceptance criteria, and implementation tasks.
 
 ### Server
 
-- [`server/SERVER_APP_ARCHITECTURE.md`](server/SERVER_APP_ARCHITECTURE.md): native/optional-Docker runtime, ParadeDB hybrid retrieval, provider-selectable Responses usage, security, failures, and server flow charts.
+- [`server/ARCHITECTURE.md`](server/ARCHITECTURE.md): native/optional-Docker runtime, ParadeDB hybrid retrieval, provider-selectable Responses usage, security, failures, and server flow charts.
 - [`server/HYBRID_SEARCH_PLAN.md`](server/HYBRID_SEARCH_PLAN.md): BM25 + pgvector rollout, package compatibility gate, RRF policy, failure behavior, tests, and evaluation.
 - [`server/RANKING_AND_CITATION_CONTRACT.md`](server/RANKING_AND_CITATION_CONTRACT.md): versioned relevance-first ranking, review aggregation, promotion disclosures, citations, uncertainty, deduplication, and evaluation gates.
 - [`server/CONVERSATION_CONTEXT_CONTRACT.md`](server/CONVERSATION_CONTEXT_CONTRACT.md): exact visitor ownership, bounded history, turn audit records, PostgreSQL checkpoints, history access, deletion, anonymization, and retention.
 - [`server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md`](server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md): Ask Sunny indexing, retrieval, chat, caching, security, and semantic-search flows.
-- [`server/SERVER_DATABASE_SCHEMA.md`](server/SERVER_DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, admin sessions, and migrations.
-- [`server/SERVER_REST_API_CONTRACT.md`](server/SERVER_REST_API_CONTRACT.md): backend REST endpoints called by WordPress, future mobile clients, and server admins.
+- [`server/DATABASE_SCHEMA.md`](server/DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, admin sessions, and migrations.
+- [`server/REST_API_CONTRACT.md`](server/REST_API_CONTRACT.md): backend REST endpoints called by WordPress, future mobile clients, and server admins.
 
 ### Plugin
 
-- [`plugin/WP_PLUGIN_ARCHITECTURE.md`](plugin/WP_PLUGIN_ARCHITECTURE.md): WordPress plugin services, admin UI, frontend widget, Directorist hooks, and plugin flow charts.
-- [`plugin/WP_PLUGIN_DATA_SCHEMA.md`](plugin/WP_PLUGIN_DATA_SCHEMA.md): WordPress options, post meta, user meta, transients, and payload mapping rules.
-- [`plugin/WP_PLUGIN_REST_API_CONTRACT.md`](plugin/WP_PLUGIN_REST_API_CONTRACT.md): WordPress REST endpoints used by the admin dashboard and browser widget.
+- [`plugin/ARCHITECTURE.md`](plugin/ARCHITECTURE.md): WordPress plugin services, admin UI, frontend widget, Directorist hooks, and plugin flow charts.
+- [`plugin/DATA_SCHEMA.md`](plugin/DATA_SCHEMA.md): WordPress options, post meta, user meta, transients, and payload mapping rules.
+- [`plugin/REST_API_CONTRACT.md`](plugin/REST_API_CONTRACT.md): WordPress REST endpoints used by the admin dashboard and browser widget.
 
 ### Shared
 

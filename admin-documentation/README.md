@@ -12,10 +12,11 @@ This documentation describes Ask Sunny 0.1.0 as implemented in this plugin. It i
 
 The plugin also includes deeper operational references:
 
-- [Installation, upgrade, and rollback](../docs/INSTALLATION.md)
-- [Compatibility matrix](../docs/COMPATIBILITY.md)
-- [Privacy and retention](../docs/PRIVACY.md)
-- [Performance thresholds](../docs/PERFORMANCE.md)
+- [Deployment and upgrade flow](../shared/SETUP_AND_OPERATIONS.md#deployment-flow)
+- [Backup and recovery](../shared/SETUP_AND_OPERATIONS.md#backup-and-recovery)
+- [Compatibility and hybrid gate](../server/PRODUCTION_RELEASE_CONTRACT.md#3-compatibility-and-hybrid-gate)
+- [Privacy and retention](../server/CONVERSATION_CONTEXT_CONTRACT.md#7-deletion-anonymization-and-retention)
+- [Performance thresholds](../server/PRODUCTION_RELEASE_CONTRACT.md#5-launch-load-baseline)
 
 ## Requirements
 

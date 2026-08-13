@@ -164,7 +164,7 @@ flowchart TD
   Persist --> End([Complete JSON output])
 ```
 
-LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in [`SERVER_DATABASE_SCHEMA.md`](SERVER_DATABASE_SCHEMA.md); checkpoints are for graph recovery and short-term orchestration, not the only audit log.
+LangGraph persistence should use a PostgreSQL-backed checkpointer when implementation begins. Durable application records still live in the schema described in [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md); checkpoints are for graph recovery and short-term orchestration, not the only audit log.
 
 SV-US-010 fixes the exact-one visitor identity boundary, non-disclosing ownership checks, bounded
 summary/history context, first-class turn audit transaction, immutable local PostgreSQL checkpoint

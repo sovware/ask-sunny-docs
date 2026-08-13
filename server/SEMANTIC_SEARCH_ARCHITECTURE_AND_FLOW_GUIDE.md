@@ -4,7 +4,7 @@
 
 Ask Sunny is a Bun/Hono conversational RAG server for a single WordPress installation. WordPress and Directorist remain the editorial source of truth. The server receives normalized source records from the WordPress plugin, creates searchable representations, performs structured and semantic retrieval, and supplies grounded evidence to the configured chat-generation provider.
 
-This guide defines the semantic indexing, retrieval, chat, and failure flows. Detailed tables and HTTP payloads remain authoritative in [`SERVER_DATABASE_SCHEMA.md`](SERVER_DATABASE_SCHEMA.md) and [`SERVER_REST_API_CONTRACT.md`](SERVER_REST_API_CONTRACT.md).
+This guide defines the semantic indexing, retrieval, chat, and failure flows. Detailed tables and HTTP payloads remain authoritative in [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) and [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md).
 
 ## 2. Architecture Scope
 

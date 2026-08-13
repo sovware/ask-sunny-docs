@@ -120,5 +120,4 @@ Anonymous requests are rate-limited using short-lived hashed identity data. A me
 - Uninstall preserves data by default; deletion requires the explicit server-side `ask_sunny_delete_data_on_uninstall` option.
 - Chat controls use semantic labels, live status regions, keyboard interaction, focus handling, and reduced-motion-aware styling.
 
-For retention details, see [Privacy and retention](../docs/PRIVACY.md).
-
+For retention details, see [Privacy and retention](../server/CONVERSATION_CONTEXT_CONTRACT.md#7-deletion-anonymization-and-retention).

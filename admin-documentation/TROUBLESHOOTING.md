@@ -8,7 +8,7 @@ Start with the narrowest relevant check. Record the UTC time, plugin version, sa
 2. Confirm PHP is 7.4–8.4 and WordPress is 6.5–7.0.x.
 3. Confirm Directorist 8.8 or newer is active.
 4. Confirm the official release ZIP—not a source checkout—was installed.
-5. Check the [compatibility matrix](../docs/COMPATIBILITY.md) before changing the environment.
+5. Check the [supported requirements](README.md#requirements) before changing the environment.
 
 The plugin intentionally stops booting when its supported runtime dependencies are unavailable.
 
@@ -166,5 +166,4 @@ Do not provide:
 - Private source content, email addresses, IP addresses, cookies, or session identifiers.
 - Raw request/response bodies or database exports.
 
-For additional operational guidance, see the plugin's existing [troubleshooting guide](../docs/TROUBLESHOOTING.md), [privacy documentation](../docs/PRIVACY.md), and [installation/rollback guide](../docs/INSTALLATION.md).
-
+For additional operational guidance, see the [backend troubleshooting guide](../shared/SETUP_AND_OPERATIONS.md#troubleshooting), [privacy and retention contract](../server/CONVERSATION_CONTEXT_CONTRACT.md#7-deletion-anonymization-and-retention), [deployment flow](../shared/SETUP_AND_OPERATIONS.md#deployment-flow), and [backup and recovery guide](../shared/SETUP_AND_OPERATIONS.md#backup-and-recovery).

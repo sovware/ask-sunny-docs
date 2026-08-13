@@ -488,8 +488,8 @@ Acceptance criteria use Given–When–Then statements. A story is complete only
 
 ## Related Specifications
 
-- [`WP_PLUGIN_ARCHITECTURE.md`](ARCHITECTURE.md)
-- [`WP_PLUGIN_DATA_SCHEMA.md`](DATA_SCHEMA.md)
-- [`WP_PLUGIN_REST_API_CONTRACT.md`](REST_API_CONTRACT.md)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`DATA_SCHEMA.md`](DATA_SCHEMA.md)
+- [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md)
 - [`DATA_AND_RAG_DESIGN.md`](../shared/DATA_AND_RAG_DESIGN.md)
 - [`SETUP_AND_OPERATIONS.md`](../shared/SETUP_AND_OPERATIONS.md)

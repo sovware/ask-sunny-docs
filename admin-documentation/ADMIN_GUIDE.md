@@ -196,7 +196,7 @@ Test in a private browser window and while signed in:
 9. Open **Connection** and run **Test Connection** only after confirming the backend and credentials are available.
 10. Inspect Data Sources for failed or unexpectedly unindexed content.
 
-For upgrades, rollback, and release validation, follow [Installation, upgrade, and rollback](../docs/INSTALLATION.md).
+For backend upgrades, follow the [deployment flow](../shared/SETUP_AND_OPERATIONS.md#deployment-flow). For rollback and recovery, follow [Backup and Recovery](../shared/SETUP_AND_OPERATIONS.md#backup-and-recovery). Validate releases against the [Production Release Contract](../server/PRODUCTION_RELEASE_CONTRACT.md).
 
 ## 11. Deactivation and uninstall
 
@@ -204,4 +204,4 @@ Deactivation stops scheduled Ask Sunny work and clears the reindex lock, while p
 
 Uninstall also preserves Ask Sunny data by default. To deliberately remove plugin-owned local data, the server-side `ask_sunny_delete_data_on_uninstall` option must be the boolean value `true` before uninstall. This opt-in deletion does not silently delete backend content, so coordinate backend deletion separately when required.
 
-Review [Privacy and retention](../docs/PRIVACY.md) before uninstalling or responding to a data-subject request.
+Review [Privacy and retention](../server/CONVERSATION_CONTEXT_CONTRACT.md#7-deletion-anonymization-and-retention) before uninstalling or responding to a data-subject request.
