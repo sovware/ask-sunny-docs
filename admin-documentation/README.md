@@ -33,7 +33,7 @@ Directorist must be active and supported. The plugin will refuse to activate or 
 
 ## Quick start
 
-1. Back up the WordPress site and install Directorist.
+1. Install Directorist.
 2. Install and activate the official `ask-sunny-<version>.zip` package.
 3. Define `ASK_SUNNY_PROVISIONING_KEY` in server configuration.
 4. Open **Ask Sunny** in WordPress administration and connect the plugin to the backend.
@@ -63,4 +63,3 @@ See the [administrator guide](ADMIN_GUIDE.md) for the complete procedure.
 - Never include API keys, visitor messages, private content, raw database rows, or request bodies in support material.
 - Use HTTPS for the production WordPress site and backend.
 - Treat **Delete Index** and **Delete All Index** as destructive backend operations. They do not delete the original WordPress or Directorist content.
-
