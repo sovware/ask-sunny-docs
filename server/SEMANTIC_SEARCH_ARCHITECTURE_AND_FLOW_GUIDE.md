@@ -50,7 +50,7 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 - API: Hono.
 - Orchestration: LangGraph.js.
 - Database: PostgreSQL with ParadeDB `pg_search`, pgvector, and `pgcrypto`.
-- Chat generation: provider-neutral adapter selected by `AI_PROVIDER=openai|groq`.
+- Chat generation: provider-neutral adapter selected by the authenticated installation database record.
 - Embeddings: independently selected with `EMBEDDING_PROVIDER` and embedding environment settings.
 - Deployment: native services or optional Docker Compose.
 - Response transport: one complete JSON response; no partial token streaming.
@@ -61,13 +61,12 @@ Relevant environment contract:
 DATABASE_URL=postgres://ask_sunny:strong-password@127.0.0.1:5432/ask_sunny
 PG_POOL_MAX=10
 
-AI_PROVIDER=openai
-OPENAI_API_KEY=replace-with-openai-api-key
-OPENAI_CHAT_MODEL=replace-with-supported-openai-model
-GROQ_API_KEY=replace-with-groq-api-key
-GROQ_CHAT_MODEL=replace-with-supported-groq-model
+AI_REQUEST_TIMEOUT_MS=45000
+OPENAI_BASE_URL=https://api.openai.com/v1
+GROQ_BASE_URL=https://api.groq.com/openai/v1
 
 EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=replace-with-embedding-api-key
 OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
@@ -91,7 +90,9 @@ MAX_METADATA_NESTING_DEPTH=4
 
 The hybrid flag begins `false` for installation or upgrade. It changes to `true` only after the `pg_search` package is proven compatible with the running PostgreSQL major version, execution OS, and architecture and all verification checks pass. The exact gate is defined in [`HYBRID_SEARCH_PLAN.md`](HYBRID_SEARCH_PLAN.md).
 
-`AI_PROVIDER` affects generation only. Provider identity and provider-specific conversation identifiers are not stored in application tables. Changing generation provider does not change embedding dimensions or reindex content.
+Stored installation provider configuration affects generation only. Provider-specific conversation
+identifiers are not stored in conversation tables. Changing generation provider does not change
+embedding dimensions or reindex content.
 
 ## 4. High-Level Architecture
 
@@ -470,7 +471,7 @@ Diagnostics must report requested/effective hybrid mode, PostgreSQL version, `pg
 - Review evidence remains linked to its parent listing.
 - Citations contain valid direct URLs and claims trace to retrieved evidence.
 - Multi-turn context and clarification behavior work without provider-hosted conversation state.
-- Switching `AI_PROVIDER` needs no database migration and does not change retrieval.
+- Switching the stored installation provider does not change retrieval or embedding dimensions.
 - Native and Docker deployments both pass the `pg_search` package compatibility gate.
 - A mismatch or missing extension keeps hybrid disabled and vector-only diagnostics honest.
 - Backup, migration, restore, reindex, and cache invalidation procedures are rehearsed.

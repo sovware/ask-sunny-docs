@@ -348,15 +348,15 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 4. **Given** a successful turn, **when** `POST /chat` returns, **then** one non-streaming JSON payload contains the conversation ID, message ID, answer, recommendations, and optional follow-up questions.
 5. **Given** a retrieval, model, schema, or timeout failure, **when** the turn ends, **then** the server returns a stable friendly error/fallback, persists the failure, and does not present unsupported claims.
 6. **Given** caller-supplied SQL, model overrides, raw tool names, or allowed-source settings, **when** validation runs, **then** those values cannot alter server policy or execution.
-7. **Given** `AI_PROVIDER=openai`, **when** a turn runs, **then** the OpenAI adapter uses only OpenAI environment configuration and returns the common internal response shape.
-8. **Given** `AI_PROVIDER=groq`, **when** a turn runs, **then** the Groq adapter uses only Groq environment configuration, excludes unsupported provider parameters, supplies server-owned conversation history, and returns the same internal response shape.
-9. **Given** an invalid provider value or missing selected-provider configuration, **when** the service starts, **then** startup fails without exposing any API key.
+7. **Given** a stored OpenAI installation provider, **when** a turn runs, **then** the OpenAI adapter uses only that database-backed configuration and returns the common internal response shape.
+8. **Given** a stored Groq installation provider, **when** a turn runs, **then** the Groq adapter uses only that database-backed configuration, excludes unsupported provider parameters, supplies server-owned conversation history, and returns the same internal response shape.
+9. **Given** missing or invalid stored provider configuration, **when** chat is requested, **then** the request fails early without exposing any API key.
 10. **Given** any conversation, message, tool-call, or usage record, **when** it is persisted, **then** no AI-provider discriminator or provider-specific conversation state is written to the database.
 
 **Tasks**
 
-- [ ] Add `AI_PROVIDER=openai|groq` as the single chat-generation switch.
-- [ ] Add environment-only OpenAI and Groq keys, base URLs, models, and shared provider timeout.
+- [ ] Add database-backed OpenAI and Groq generation selection and credentials.
+- [ ] Keep non-secret provider base URLs and the shared provider timeout in deployment configuration.
 - [ ] Keep embedding provider, model, URL, and dimensions independently configured.
 - [ ] Implement a common generation-provider interface with OpenAI and Groq Responses adapters.
 - [ ] Resolve adapters through a runtime registry so orchestration, routes, domain services, and persistence contain no provider-name branches.
@@ -487,6 +487,25 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-011
 **Priority:** Must have
 
+### SV-US-016 — Resolve AI provider configuration from the installation database
+
+**Normative contracts:** [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md), [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md)
+
+**User story**
+
+> As a **site operator**, I want the provisioned installation provider to be authoritative, so that health, diagnostics, and chat cannot disagree with the stored provider configuration.
+
+**Acceptance criteria**
+
+1. **Given** an installation provisioned with OpenAI or Groq, **when** health and diagnostics run, **then** they report the active provider from database credential metadata rather than process environment configuration.
+2. **Given** an authenticated chat request, **when** provider resolution runs, **then** it uses only that installation's stored provider type, encrypted API key, and chat model.
+3. **Given** missing, incomplete, or undecryptable provider metadata, **when** chat is requested, **then** it returns `503 ai_provider_not_configured` before creating a turn or invoking retrieval, tools, or a provider.
+4. **Given** the runtime environment contract, **when** it is validated, **then** no generation-provider selector, API key, or chat model is required from `.env`; only non-secret adapter endpoints and timeout controls remain.
+5. **Given** independently configured embeddings, **when** generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
+
+**Dependencies:** SV-US-014, SV-US-015
+**Priority:** Must have
+
 ## Recommended Story Order
 
 1. SV-US-001 → SV-US-004: service, database, authentication, and retrieval policy.
@@ -495,6 +514,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 4. SV-US-010 and SV-US-011: durable conversation and grounded chat.
 5. SV-US-012 → SV-US-014: operations, security, resilience, release, and WordPress-safe telemetry.
 6. SV-US-015: complete conversation message restoration.
+7. SV-US-016: database-backed generation provider authority.
 
 ## Related Specifications
 

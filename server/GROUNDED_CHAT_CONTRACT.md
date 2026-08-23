@@ -59,9 +59,17 @@ no unsupported factual claim, and returns empty grounded arrays.
 
 ## 4. Provider-Neutral Generation Boundary
 
-The provider registry resolves `AI_PROVIDER` once during startup. Only `openai` and `groq` are
-registered. Orchestration, tools, HTTP routes, and persistence receive the selected adapter through
-the common boundary and never branch on its name.
+The provider registry resolves the authenticated installation's active `ai_provider` metadata from
+the database for every turn. Only `openai` and `groq` are registered. The stored provider type,
+encrypted API key, and chat model are authoritative; generation provider selection and credentials
+must not come from process environment variables. Orchestration, tools, HTTP routes, and
+conversation persistence receive the selected adapter through the common boundary and never branch
+on its name.
+
+Provider resolution occurs after request/authentication validation but before a conversation turn,
+retrieval, tool, or upstream provider call is created. Missing, incomplete, or undecryptable stored
+provider configuration returns `503 ai_provider_not_configured` without falling back to a local or
+environment adapter.
 
 The internal request contains only:
 
@@ -91,16 +99,16 @@ public errors or durable records.
 
 ### OpenAI Responses adapter
 
-The OpenAI adapter uses only `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_CHAT_MODEL`, and
-`AI_REQUEST_TIMEOUT_MS`. It calls the configured base URL's `/responses` endpoint, supplies the
+The OpenAI adapter uses only the stored installation API key and chat model plus the non-secret
+`OPENAI_BASE_URL` and `AI_REQUEST_TIMEOUT_MS` endpoint controls. It calls the configured base URL's `/responses` endpoint, supplies the
 complete server-owned input, uses strict function schemas and a strict JSON-schema text format, and
 sets `store: false`. It never sends or persists `previous_response_id`, a provider conversation ID,
 or a provider response ID.
 
 ### Groq Responses adapter
 
-The Groq adapter uses only `GROQ_API_KEY`, `GROQ_BASE_URL`, `GROQ_CHAT_MODEL`, and
-`AI_REQUEST_TIMEOUT_MS`. It calls the configured base URL's `/responses` endpoint and supplies the
+The Groq adapter uses only the stored installation API key and chat model plus the non-secret
+`GROQ_BASE_URL` and `AI_REQUEST_TIMEOUT_MS` endpoint controls. It calls the configured base URL's `/responses` endpoint and supplies the
 same complete server-owned history. It omits unsupported state and request parameters, including
 `store`, `previous_response_id`, `conversation`, `truncation`, `include`, `prompt`,
 `prompt_cache_key`, and `safety_identifier`.

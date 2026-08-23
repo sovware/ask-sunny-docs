@@ -78,18 +78,14 @@ Use Docker volumes for ParadeDB data and any Redis persistence. Add health check
 Keep all server configuration in `.env`, the native service-manager environment, or an equivalent Docker secret mechanism. Important controls include:
 
 ```dotenv
-AI_PROVIDER=openai
 AI_REQUEST_TIMEOUT_MS=45000
 
-OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_CHAT_MODEL=
 
-GROQ_API_KEY=
 GROQ_BASE_URL=https://api.groq.com/openai/v1
-GROQ_CHAT_MODEL=
 
 EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=
 OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
@@ -119,7 +115,12 @@ CONVERSATION_RETENTION_DAYS=90
 CONVERSATION_DELETED_GRACE_DAYS=30
 ```
 
-`AI_PROVIDER=openai|groq` is the single generation-provider switch. The runtime provider registry resolves the selected adapter without changing orchestration or persistence code. The selected adapter's key, base URL, and model must validate at startup. Credentials for the inactive generation provider may be omitted. Embeddings remain independently configured so changing the chat provider never silently changes vector dimensions or forces a reindex. Provider identity is not persisted in application tables.
+The runtime provider registry resolves the authenticated installation's stored provider type,
+encrypted key, and chat model without changing orchestration or conversation persistence code.
+Missing or invalid stored generation configuration fails the related request before processing.
+Only non-secret adapter endpoints and the shared timeout remain in environment configuration.
+Embeddings remain independently configured so changing the chat provider never silently changes
+vector dimensions or forces a reindex.
 
 `HYBRID_SEARCH_ENABLED=false` is the required safe value during installation and upgrade. Hybrid is the expected production mode only after the compatibility, extension, migration, index, direct-query, and application gates below pass; then set it to `true` deliberately.
 
@@ -324,7 +325,7 @@ Recovery sequence:
 
 - Check WordPress logs and backend logs using the correlation ID.
 - Verify the backend installation key and `/health`.
-- Verify `AI_PROVIDER` and that provider's API key, base URL, model, and supported request parameters.
+- Verify the installation's stored provider type, configured status, model, endpoint, and supported request parameters without printing its key.
 - Verify the embedding-provider configuration separately.
 
 ### Results Are Irrelevant
@@ -372,7 +373,7 @@ secret-free final report follow
 - ParadeDB, `pg_search`, and pgvector are installed and compatible; any missing or mismatched evidence keeps hybrid disabled.
 - Required migrations, BM25 indexes, `ANALYZE`, direct BM25 smoke queries, and application checks pass before hybrid search is enabled.
 - Backend `/health` and WordPress diagnostics pass.
-- `AI_PROVIDER` selects a configured, verified OpenAI or Groq adapter.
+- The active installation database record selects a configured, verified OpenAI or Groq adapter.
 - Initial reindex completes.
 - Every Directorist directory type has a required listing source, and reviews are controlled by one global optional Listing Reviews setting.
 - Global reviews and optional WordPress sources honor enabled state and filters.

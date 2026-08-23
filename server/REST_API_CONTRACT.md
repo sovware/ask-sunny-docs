@@ -57,9 +57,11 @@ Request:
 ```json
 {
   "provisioning_key": "long-shared-secret",
-  "domain": "example.com",
-  "wordpress_site_url": "https://example.com",
-  "installation_name": "Example WordPress Site"
+  "site_url": "https://example.com",
+  "installation_name": "Example WordPress Site",
+  "ai_provider_type": "openai",
+  "ai_model_name": "supported-chat-model",
+  "ai_provider_api_key": "provider-secret"
 }
 ```
 
@@ -81,16 +83,22 @@ Response:
   "installation": {
     "domain": "example.com",
     "timezone": "UTC"
+  },
+  "ai_provider": {
+    "type": "openai",
+    "model": "supported-chat-model",
+    "configured": true,
+    "masked_api_key": "...masked..."
   }
 }
 ```
 
-`domain` is a lower-case hostname without a scheme, port, path, query, or fragment.
-`wordpress_site_url` is an absolute HTTPS URL whose hostname exactly matches `domain`; subdirectory
-installations may retain a path, while query and fragment components are rejected. The backend trims
-the installation name, canonicalizes the identity, and registers that domain for the singleton
-backend. Later requests may register additional canonical domains served by the same backend; each
-domain receives and rotates its own credential without revoking credentials for other domains.
+`site_url` is an absolute HTTP(S) URL without user information, query, or fragment. The backend
+derives its lower-case hostname, trims the installation name, validates and encrypts the provider
+API key, and stores the provider type and chat model with the active installation credential. Later
+requests may register additional canonical domains served by the same backend; each domain receives
+and rotates its own credential and provider configuration without revoking credentials for other
+domains.
 
 The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-secret>`. The unique
 `key_prefix` is the format through the key-id segment and may be logged for credential identification;
@@ -118,6 +126,15 @@ For protected routes, malformed, unknown, hash-mismatched, and revoked bearer ke
 same `401 authentication_error`. An authenticated key missing a route's required scope returns
 `403 forbidden` without naming the missing scope. Only a fully authorized request updates
 `last_used_at`.
+
+### `POST /installation/provider`
+
+Requires the active installation key with `operations:read`. It accepts the same three generic
+provider fields used by provisioning: `ai_provider_type`, `ai_model_name`, and
+`ai_provider_api_key`. The backend validates the provider/model/key combination, encrypts the API
+key, atomically replaces the active domain's stored provider metadata, and returns only the public
+provider shape. Invalid credentials return stable `401` or `503` errors without changing the stored
+configuration or exposing the key.
 
 ## Retrieval Configuration Routes
 
@@ -500,7 +517,10 @@ The chat caller does not provide `allowed_data_source_keys`. The backend loads i
 
 `channel` accepts `web`, `mobile`, or `admin_test`. WordPress sends `web` for the public widget and `admin_test` only from its capability-protected Test Chat route. Channel is product context, not an AI-provider selector.
 
-The chat caller also cannot choose the AI provider or model. The server uses `AI_PROVIDER` and the selected provider's environment configuration for the entire turn.
+The chat caller cannot override the AI provider or model. The server uses the authenticated
+installation's encrypted database-backed provider configuration for the entire turn. Missing or
+incomplete provider configuration returns `503 ai_provider_not_configured` before a conversation
+turn, retrieval, tool, or upstream provider call is created.
 
 SV-US-008 adds no public retrieval endpoint. `search_content` and `get_content_detail` are
 server-owned application/tool boundaries used by the later chat workflow. Their validated filter
@@ -780,7 +800,7 @@ Returns operational state.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
-- Chat routes must reject or ignore caller-supplied `ai_provider`, provider API keys, base URLs, and model names; only environment configuration is authoritative.
+- Chat routes must reject caller-supplied provider overrides; only the authenticated installation's database-backed provider type, encrypted API key, and chat model are authoritative.
 - Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.
 
 ### Content And Metadata Safety Limits
