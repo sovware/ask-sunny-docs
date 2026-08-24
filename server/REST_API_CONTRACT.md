@@ -50,18 +50,15 @@ Returns server health.
 
 ### `POST /auth/provision-installation`
 
-Creates or rotates the WordPress installation API key. Uses the provisioning secret, not an existing installation key.
+Creates a WordPress installation API key for one unprovisioned identity. Uses the provisioning
+secret, not an existing installation key, and never rotates an active credential.
 
 Request:
 
 ```json
 {
   "provisioning_key": "long-shared-secret",
-  "site_url": "https://example.com",
-  "installation_name": "Example WordPress Site",
-  "ai_provider_type": "openai",
-  "ai_model_name": "supported-chat-model",
-  "ai_provider_api_key": "provider-secret"
+  "provisioning_id": "wordpress-production"
 }
 ```
 
@@ -79,26 +76,13 @@ Response:
     "conversations:read",
     "operations:read"
   ],
-  "rotated_previous_key": false,
-  "installation": {
-    "domain": "example.com",
-    "timezone": "UTC"
-  },
-  "ai_provider": {
-    "type": "openai",
-    "model": "supported-chat-model",
-    "configured": true,
-    "masked_api_key": "...masked..."
-  }
+  "provisioning_id": "wordpress-production"
 }
 ```
 
-`site_url` is an absolute HTTP(S) URL without user information, query, or fragment. The backend
-derives its lower-case hostname, trims the installation name, validates and encrypts the provider
-API key, and stores the provider type and chat model with the active installation credential. Later
-requests may register additional canonical domains served by the same backend; each domain receives
-and rotates its own credential and provider configuration without revoking credentials for other
-domains.
+`provisioning_id` accepts any string after trimming surrounding whitespace, must contain 5 through
+255 characters, and is stored exactly after trimming. The request rejects every field other than
+`provisioning_key` and `provisioning_id`.
 
 The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-secret>`. The unique
 `key_prefix` is the format through the key-id segment and may be logged for credential identification;
@@ -110,13 +94,11 @@ The migration that introduces `operations:read` adds it idempotently to every ac
 `wordpress_installation` credential's stored scope metadata. It does not rotate or reveal the
 credential, change its status, or grant access to `/admin/*` routes.
 
-Provisioning is also the rotation operation for a canonical domain. The first successful request for
-a domain returns `rotated_previous_key: false`. A later successful request for the same canonical
-domain creates a new key, immediately revokes every prior active `wordpress_installation` key for
-that domain in the same database transaction, returns `rotated_previous_key: true`, and writes
-cross-referenced rotation metadata on the new and revoked rows. If any part of the transaction
-fails, the previous key remains active and no new key is issued. The plaintext key is returned only
-in this response and cannot be recovered.
+If an active key already owns the normalized provisioning identity, provisioning returns
+`409 provisioning_id_already_provisioned`, creates no key, and leaves the existing credential
+unchanged. The existing key must successfully call `POST /installation/disconnect` before that
+identity can be provisioned again. Disconnect never reveals or rotates a key. The plaintext key is
+returned only in its successful provisioning response and cannot be recovered.
 
 An invalid provisioning secret returns the same `401 authentication_error` used for invalid bearer
 credentials and performs no installation or key write. Provisioning-secret comparison is
@@ -129,12 +111,17 @@ same `401 authentication_error`. An authenticated key missing a route's required
 
 ### `POST /installation/provider`
 
-Requires the active installation key with `operations:read`. It accepts the same three generic
-provider fields used by provisioning: `ai_provider_type`, `ai_model_name`, and
-`ai_provider_api_key`. The backend validates the provider/model/key combination, encrypts the API
-key, atomically replaces the active domain's stored provider metadata, and returns only the public
-provider shape. Invalid credentials return stable `401` or `503` errors without changing the stored
-configuration or exposing the key.
+Requires any active installation key with `operations:read`. It accepts `ai_provider_type`,
+`ai_model_name`, and `ai_provider_api_key`. The backend validates the provider/model/key combination,
+encrypts the API key, atomically replaces the singleton global `app_config` AI fields, and returns
+only the public provider shape. The configuration applies to every installation. Invalid credentials
+return stable `401` or `503` errors without changing the global configuration or exposing the key.
+
+### `POST /installation/disconnect`
+
+Requires an active installation key. It revokes only the presented key and records the generic
+disconnect reason. After disconnect succeeds, the key receives `401 authentication_error` on every
+protected route and its `provisioning_id` may be provisioned again.
 
 ## Retrieval Configuration Routes
 
@@ -800,7 +787,7 @@ Returns operational state.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
-- Chat routes must reject caller-supplied provider overrides; only the authenticated installation's database-backed provider type, encrypted API key, and chat model are authoritative.
+- Chat routes must reject caller-supplied provider overrides; only the singleton global `app_config` provider type, encrypted API key, and chat model are authoritative.
 - Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.
 
 ### Content And Metadata Safety Limits

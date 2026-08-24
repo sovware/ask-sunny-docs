@@ -487,21 +487,23 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-011
 **Priority:** Must have
 
-### SV-US-016 — Resolve AI provider configuration from the installation database
+### SV-US-016 — Store global AI configuration and provision immutable identities
 
 **Normative contracts:** [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md), [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 **User story**
 
-> As a **site operator**, I want the provisioned installation provider to be authoritative, so that health, diagnostics, and chat cannot disagree with the stored provider configuration.
+> As a **server operator**, I want one global AI configuration and explicit provisioning identities, so that every client uses the same provider while duplicate active identities cannot silently rotate credentials.
 
 **Acceptance criteria**
 
-1. **Given** an installation provisioned with OpenAI or Groq, **when** health and diagnostics run, **then** they report the active provider from database credential metadata rather than process environment configuration.
-2. **Given** an authenticated chat request, **when** provider resolution runs, **then** it uses only that installation's stored provider type, encrypted API key, and chat model.
-3. **Given** missing, incomplete, or undecryptable provider metadata, **when** chat is requested, **then** it returns `503 ai_provider_not_configured` before creating a turn or invoking retrieval, tools, or a provider.
-4. **Given** the runtime environment contract, **when** it is validated, **then** no generation-provider selector, API key, or chat model is required from `.env`; only non-secret adapter endpoints and timeout controls remain.
-5. **Given** independently configured embeddings, **when** generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
+1. **Given** a configured OpenAI or Groq provider, **when** health, diagnostics, or chat resolves it, **then** every client uses the singleton encrypted `app_config` record rather than installation metadata or process environment configuration.
+2. **Given** a valid provisioning secret and a trimmed `provisioning_id` of at least five characters, **when** provisioning succeeds, **then** a new installation key is returned and only its hash, fixed scopes, and provisioning identity are stored.
+3. **Given** an active key for a `provisioning_id`, **when** the same identity is provisioned again, **then** the server returns `409 provisioning_id_already_provisioned`, creates no credential, and does not revoke or rotate the existing key.
+4. **Given** the active key disconnects, **when** the same `provisioning_id` is provisioned later, **then** a new key may be created while the disconnected key remains revoked.
+5. **Given** missing, incomplete, or undecryptable global provider configuration, **when** chat is requested, **then** it returns `503 ai_provider_not_configured` before creating a turn or invoking retrieval, tools, or a provider.
+6. **Given** an existing database with installation-scoped provider metadata, **when** the forward migration runs, **then** the latest valid provider is copied to global app configuration before provider metadata is removed from every installation key.
+7. **Given** independently configured embeddings, **when** global generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

@@ -21,7 +21,7 @@ The server is responsible for:
 - Language: JavaScript, following the backend service's Bun/Hono runtime pattern.
 - HTTP framework: Hono.
 - Agent framework: LangGraph.js.
-- Model API: provider-neutral generation interface selected from the authenticated installation's database-backed provider configuration.
+- Model API: provider-neutral generation interface selected from singleton global database configuration.
 - Embeddings: independently configured embedding provider; OpenAI is the launch default.
 - Database: ParadeDB's PostgreSQL distribution with `pg_search` and pgvector.
 - Search: hybrid BM25 keyword matching plus dense vector similarity.
@@ -88,10 +88,10 @@ MAX_TOOL_ITERATIONS=6
 DEFAULT_TIMEZONE=UTC
 ```
 
-Provisioning stores the selected generation provider, encrypted API key, and chat model in the
-active installation credential metadata. A provider registry resolves that database record to an
-adapter implementing the provider-neutral generation interface; orchestration, routes, and domain
-services must not branch on provider names. Missing or incomplete stored provider configuration
+The singleton `app_config` row stores the selected generation provider, encrypted API key, and chat
+model globally. A provider registry resolves that database record to an adapter implementing the
+provider-neutral generation interface; orchestration, routes, and domain services must not branch
+on provider names. Missing or incomplete stored provider configuration
 fails the related request before work begins and never falls back to process environment settings.
 Non-secret provider base URLs and the shared request timeout remain deployment controls. Embeddings
 remain independently configured because generation and embedding providers do not have identical
@@ -105,7 +105,7 @@ milliseconds, and may be raised by a valid `Retry-After` value up to that same c
 
 Because chat is returned as one complete response, the WordPress proxy timeout must be greater than `AI_REQUEST_TIMEOUT_MS`; a 60-second WordPress timeout provides application overhead around the 45-second provider timeout.
 
-Model names are deployment configuration, not hardcoded constants. Verify the selected provider's current model, Responses API, structured-output, and tool-use support before production launch. The provider adapter must not send parameters unsupported by the active provider.
+Model names are global database configuration, not hardcoded constants. Verify the selected provider's current model, Responses API, structured-output, and tool-use support before production launch. The provider adapter must not send parameters unsupported by the active provider.
 
 The example connection URLs target native services. Docker Compose overrides their hosts with Compose service names such as `paradedb` and `redis`; application code and all other configuration remain identical.
 
@@ -184,7 +184,7 @@ Use the configured provider's Responses API for:
 - Complete structured response generation for the widget.
 - Multi-turn continuity through server-side conversation context.
 
-The launch adapter registry includes `openai` and `groq`; the authenticated installation's stored
+The launch adapter registry includes `openai` and `groq`; the singleton global `app_config`
 provider type resolves the matching adapter. Adding a future provider requires registering another
 implementation, not editing orchestration or conversation persistence code. Each adapter owns
 request construction, supported parameters, structured-output validation, tool-call normalization,

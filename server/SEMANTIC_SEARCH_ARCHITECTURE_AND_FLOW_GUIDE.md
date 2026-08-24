@@ -50,7 +50,7 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 - API: Hono.
 - Orchestration: LangGraph.js.
 - Database: PostgreSQL with ParadeDB `pg_search`, pgvector, and `pgcrypto`.
-- Chat generation: provider-neutral adapter selected by the authenticated installation database record.
+- Chat generation: provider-neutral adapter selected by the singleton global `app_config` record.
 - Embeddings: independently selected with `EMBEDDING_PROVIDER` and embedding environment settings.
 - Deployment: native services or optional Docker Compose.
 - Response transport: one complete JSON response; no partial token streaming.

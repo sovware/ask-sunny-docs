@@ -19,6 +19,25 @@ These extension statements may run only after the deployment compatibility gate.
 ## Core Configuration
 
 ```sql
+CREATE TABLE app_config (
+  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
+  ai_provider_type TEXT NULL CHECK (ai_provider_type IN ('openai', 'groq')),
+  ai_chat_model TEXT NULL,
+  encrypted_ai_api_key TEXT NULL,
+  masked_ai_api_key TEXT NULL,
+  ai_provider_updated_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (ai_provider_type IS NULL AND ai_chat_model IS NULL AND encrypted_ai_api_key IS NULL
+      AND masked_ai_api_key IS NULL AND ai_provider_updated_at IS NULL)
+    OR
+    (ai_provider_type IS NOT NULL AND ai_chat_model IS NOT NULL
+      AND encrypted_ai_api_key IS NOT NULL AND masked_ai_api_key IS NOT NULL
+      AND ai_provider_updated_at IS NOT NULL)
+  )
+);
+
 CREATE TABLE installation_config (
   id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
   installation_name TEXT NOT NULL DEFAULT 'WordPress Site',
@@ -55,7 +74,16 @@ CREATE TABLE api_keys (
   last_used_at TIMESTAMPTZ NULL,
   revoked_at TIMESTAMPTZ NULL
 );
+
+CREATE UNIQUE INDEX api_keys_active_provisioning_id_uidx
+ON api_keys ((metadata->>'provisioning_id'))
+WHERE key_type = 'wordpress_installation' AND status = 'active';
 ```
+
+`app_config` is a singleton global application record. Its AI provider type, chat model, and
+encrypted API key apply to every installation key and chat request. Provider configuration must
+never be copied into `api_keys.metadata`. The API key is AES-256-GCM ciphertext protected by the
+server provider-secret encryption key; only its masked suffix may be returned by APIs.
 
 Allowlist replacement uses one conditional statement that matches
 `allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
@@ -76,13 +104,17 @@ For WordPress installation credentials, `key_prefix` is the unique
 digest of the complete high-entropy API key. The digest is used only after the prefix selects a
 candidate row and is compared in constant time. Plaintext keys are never persisted.
 
-The `metadata` object for a WordPress installation key contains its fixed `scopes`, a
-canonical `domain`, `wordpress_site_url`, `rotation_id`, and either `rotated_from_key_ids` on the
-newly issued key or `revocation_reason` plus `replaced_by_key_id` on keys revoked by rotation.
-Provisioning/rotation atomically upserts the domain registry row, ensures the singleton
-`installation_config` row exists for shared settings, inserts the new key, and revokes every
-previously active `wordpress_installation` key for the same canonical domain only. Credentials for
-other registered domains remain active. A failed transaction must leave the prior credential active.
+The `metadata` object for a WordPress installation key contains only its fixed `scopes`, its trimmed
+`provisioning_id`, and a `revocation_reason` after disconnect. A provisioning identity accepts any
+Unicode string after trimming, is 5 through 255 characters, and is compared exactly after that
+normalization. The partial unique index enforces at most one active WordPress installation key per
+identity under concurrency.
+
+Provisioning never rotates or revokes an existing key. When an active row already owns the requested
+identity, the transaction returns `409 provisioning_id_already_provisioned` and creates no row. The
+existing authenticated key must call disconnect first; disconnect revokes only that key. A later
+provisioning request for the same identity may then create a new key while preserving the revoked
+row as audit history.
 
 ## Data Source Metadata
 

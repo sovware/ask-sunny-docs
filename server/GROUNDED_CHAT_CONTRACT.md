@@ -59,12 +59,12 @@ no unsupported factual claim, and returns empty grounded arrays.
 
 ## 4. Provider-Neutral Generation Boundary
 
-The provider registry resolves the authenticated installation's active `ai_provider` metadata from
-the database for every turn. Only `openai` and `groq` are registered. The stored provider type,
-encrypted API key, and chat model are authoritative; generation provider selection and credentials
-must not come from process environment variables. Orchestration, tools, HTTP routes, and
-conversation persistence receive the selected adapter through the common boundary and never branch
-on its name.
+The provider registry resolves the singleton global `app_config` AI provider from the database for
+every turn. Only `openai` and `groq` are registered. The globally stored provider type, encrypted API
+key, and chat model are authoritative; generation provider selection and credentials are never
+installation-specific and must not come from process environment variables. Orchestration, tools,
+HTTP routes, and conversation persistence receive the selected adapter through the common boundary
+and never branch on its name.
 
 Provider resolution occurs after request/authentication validation but before a conversation turn,
 retrieval, tool, or upstream provider call is created. Missing, incomplete, or undecryptable stored

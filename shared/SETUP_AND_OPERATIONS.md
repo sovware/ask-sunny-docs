@@ -115,8 +115,8 @@ CONVERSATION_RETENTION_DAYS=90
 CONVERSATION_DELETED_GRACE_DAYS=30
 ```
 
-The runtime provider registry resolves the authenticated installation's stored provider type,
-encrypted key, and chat model without changing orchestration or conversation persistence code.
+The runtime provider registry resolves the singleton global `app_config` provider type, encrypted
+key, and chat model without changing orchestration or conversation persistence code.
 Missing or invalid stored generation configuration fails the related request before processing.
 Only non-secret adapter endpoints and the shared timeout remain in environment configuration.
 Embeddings remain independently configured so changing the chat provider never silently changes
@@ -325,7 +325,7 @@ Recovery sequence:
 
 - Check WordPress logs and backend logs using the correlation ID.
 - Verify the backend installation key and `/health`.
-- Verify the installation's stored provider type, configured status, model, endpoint, and supported request parameters without printing its key.
+- Verify the global app provider type, configured status, model, endpoint, and supported request parameters without printing its key.
 - Verify the embedding-provider configuration separately.
 
 ### Results Are Irrelevant
@@ -349,18 +349,23 @@ Recovery sequence:
 - Verify backend logs for `authentication_error`.
 - Rotate the provisioning key only after updating both sides.
 
-### Emergency Installation Credential Rotation
+### Emergency Installation Credential Replacement
 
-1. Verify the canonical WordPress domain and site URL from a trusted administrative session.
-2. Send one provisioning request from trusted server-side code and capture the returned installation key without logging it.
-3. Store the new key in the WordPress server-side option before making further backend calls. A successful response means every previous installation key was revoked atomically.
-4. Run an authenticated diagnostic with the new key and confirm the old key now receives the generic `401 authentication_error`.
-5. Record the non-secret `key_prefix`, rotation time, and operator in the incident record. Never record the full key.
-6. If the request fails or its response is lost, retry provisioning; the last successful response is the only active key and must replace any earlier captured value.
+1. Verify the stored `provisioning_id` from a trusted administrative session.
+2. Call `POST /installation/disconnect` with the existing key. That key is immediately revoked.
+3. Send one provisioning request with the same identity and capture the returned installation key without logging it.
+4. Store the new key in the WordPress server-side option before making further backend calls.
+5. Run an authenticated diagnostic with the new key and confirm the old key receives the generic `401 authentication_error`.
+6. Record the non-secret `key_prefix`, replacement time, identity, and operator. Never record the full key.
+
+Provisioning an identity that still has an active key returns
+`409 provisioning_id_already_provisioned`; it never rotates that key. If a successful provisioning
+response is lost, disconnect the newly created key through an authorized recovery workflow before
+trying the same identity again.
 
 If the provisioning secret itself may be exposed, replace it in the backend secret store, restart the
-service, update the trusted WordPress-side provisioning workflow, and only then rotate the
-installation credential. Do not place either secret in command history, tickets, or logs.
+service and update the trusted WordPress-side provisioning workflow. Do not place either secret in
+command history, tickets, or logs.
 
 ## Production Readiness Checklist
 
@@ -373,7 +378,7 @@ secret-free final report follow
 - ParadeDB, `pg_search`, and pgvector are installed and compatible; any missing or mismatched evidence keeps hybrid disabled.
 - Required migrations, BM25 indexes, `ANALYZE`, direct BM25 smoke queries, and application checks pass before hybrid search is enabled.
 - Backend `/health` and WordPress diagnostics pass.
-- The active installation database record selects a configured, verified OpenAI or Groq adapter.
+- The singleton global app configuration selects a configured, verified OpenAI or Groq adapter.
 - Initial reindex completes.
 - Every Directorist directory type has a required listing source, and reviews are controlled by one global optional Listing Reviews setting.
 - Global reviews and optional WordPress sources honor enabled state and filters.
