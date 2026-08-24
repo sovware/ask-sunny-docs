@@ -515,6 +515,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 17. **Given** a connected router used by either service, **when** that router is disconnected, **then** its credential and every dependent router/model selection are deleted atomically without selecting a fallback router.
 18. **Given** an authorized admin or website key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
 19. **Given** any health request, **when** router state is reported, **then** `ai_routers` includes every supported router as a boolean indicating whether its encrypted credential exists, without validating or exposing the credential.
+20. **Given** an active `website` key with `operations:read`, **when** it calls an `/admin/*`, `/system/ai-config/*`, or `/system/options` route, **then** it is authorized by key type while admin keys continue to require their admin read/write scopes.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have
