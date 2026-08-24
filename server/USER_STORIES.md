@@ -486,7 +486,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-011
 **Priority:** Must have
 
-### SV-US-016 — Store global AI configuration and provision immutable identities
+### SV-US-016 — Configure multiple AI routers and immutable identities
 
 **Normative contracts:** [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md), [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
@@ -514,6 +514,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 16. **Given** a connected router and supported model, **when** chat or embedding selection is updated, **then** only the corresponding service selection is replaced and becomes effective without restarting the API.
 17. **Given** a connected router used by either service, **when** that router is disconnected, **then** its credential and every dependent router/model selection are deleted atomically without selecting a fallback router.
 18. **Given** an admin read key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
+19. **Given** any health request, **when** router state is reported, **then** `ai_routers` includes every supported router as a boolean indicating whether its encrypted credential exists, without validating or exposing the credential.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

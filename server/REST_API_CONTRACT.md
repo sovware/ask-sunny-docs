@@ -45,11 +45,20 @@ Returns server health.
   "chat_ai_model": "gpt-5.4-mini",
   "embedding_ai_router": "openai",
   "embedding_ai_model": "text-embedding-3-small",
+  "ai_routers": {
+    "openai": true,
+    "groq": false,
+    "gemini": false
+  },
   "redis": "disabled"
 }
 ```
 
 `hybrid_search.status` may report `disabled` or `degraded` when package compatibility is unproven, `pg_search`, a required BM25 index, or smoke verification is unavailable. Health must not report BM25 as enabled merely because the environment flag is set. A requested-but-ineffective hybrid configuration reports `requested: true`, `effective: false`, and a stable reason code.
+
+`ai_routers` contains every supported router key. A value is `true` only when that router has an
+encrypted credential row in `options`; it does not imply that an upstream request was made during
+the health check or that either AI service currently selects that router.
 
 ### `POST /auth/provision`
 
