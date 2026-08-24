@@ -44,14 +44,6 @@ CREATE TABLE app_config (
 CREATE INDEX app_config_allowed_data_sources_gin_idx
 ON app_config USING GIN (allowed_data_source_keys);
 
-CREATE TABLE installation_domains (
-  domain TEXT PRIMARY KEY,
-  wordpress_site_url TEXT NOT NULL UNIQUE,
-  installation_name TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   key_prefix TEXT NOT NULL UNIQUE,
@@ -76,9 +68,9 @@ server provider-secret encryption key; only its masked suffix may be returned by
 
 The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
 `admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
-`app_config`. This deliberately invalidates every previously issued installation/admin credential
-and removes obsolete site identity data. A follow-up migration copies the retrieval allowlist into
-`app_config` and drops the obsolete `installation_config` table.
+`app_config`. This deliberately invalidates every previously issued installation/admin credential.
+Follow-up cleanup migrations copy the retrieval allowlist into `app_config`, drop
+`installation_config`, and drop the unused `installation_domains` table.
 
 Allowlist replacement uses one conditional statement that matches
 `allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
