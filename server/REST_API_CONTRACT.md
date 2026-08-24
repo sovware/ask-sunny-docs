@@ -441,7 +441,7 @@ Tombstones every active record for a key in its source-kind table. WordPress cal
 explicit admin **Delete all indexed data** action or an equivalent deliberate maintenance operation.
 Disabling an optional WordPress source must not call this route. A missing key is an idempotent
 success with zero items. The operation updates only the resolved content table in one transaction and
-never inserts, deletes, or updates `installation_config.allowed_data_source_keys`.
+never inserts, deletes, or updates `app_config.allowed_data_source_keys`.
 
 Request:
 

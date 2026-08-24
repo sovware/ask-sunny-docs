@@ -26,6 +26,9 @@ CREATE TABLE app_config (
   encrypted_ai_api_key TEXT NULL,
   masked_ai_api_key TEXT NULL,
   ai_provider_updated_at TIMESTAMPTZ NULL,
+  allowed_data_source_keys TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  allowed_data_sources_version BIGINT NOT NULL DEFAULT 0,
+  allowed_data_sources_updated_at TIMESTAMPTZ NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (
@@ -38,22 +41,8 @@ CREATE TABLE app_config (
   )
 );
 
-CREATE TABLE installation_config (
-  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
-  installation_name TEXT NOT NULL DEFAULT 'WordPress Site',
-  primary_domain TEXT NOT NULL,
-  wordpress_site_url TEXT NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'UTC',
-  allowed_data_source_keys TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  allowed_data_sources_version BIGINT NOT NULL DEFAULT 0,
-  allowed_data_sources_updated_at TIMESTAMPTZ NULL,
-  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX installation_allowed_data_sources_gin_idx
-ON installation_config USING GIN (allowed_data_source_keys);
+CREATE INDEX app_config_allowed_data_sources_gin_idx
+ON app_config USING GIN (allowed_data_source_keys);
 
 CREATE TABLE installation_domains (
   domain TEXT PRIMARY KEY,
@@ -88,7 +77,8 @@ server provider-secret encryption key; only its masked suffix may be returned by
 The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
 `admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
 `app_config`. This deliberately invalidates every previously issued installation/admin credential
-and removes obsolete site identity data. It must preserve `app_config` and `installation_config`.
+and removes obsolete site identity data. A follow-up migration copies the retrieval allowlist into
+`app_config` and drops the obsolete `installation_config` table.
 
 Allowlist replacement uses one conditional statement that matches
 `allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
@@ -123,7 +113,7 @@ row as audit history.
 
 ## Data Source Metadata
 
-The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into `installation_config.allowed_data_source_keys`; the backend enforces that persisted list for RAG.
+The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into `app_config.allowed_data_source_keys`; the backend enforces that persisted list for RAG.
 
 ```sql
 CREATE TABLE data_sources (
@@ -356,7 +346,7 @@ does not store placeholder hashes. All `data_sources` refresh plus matching cont
 transaction. Review writes resolve both the classified parent source and the composite parent listing
 before inserting, returning `409 parent_listing_missing` with no orphan content row when absent.
 
-Registering or refreshing `data_sources` never modifies `installation_config.allowed_data_source_keys`.
+Registering or refreshing `data_sources` never modifies `app_config.allowed_data_source_keys`.
 The same `source_id` remains unique only within its concrete `data_source_id`; it may exist under a
 different source key without collision.
 

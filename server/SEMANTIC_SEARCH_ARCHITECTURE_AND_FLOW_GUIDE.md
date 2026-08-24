@@ -130,7 +130,7 @@ The source-kind repositories remain separate:
 | `directorist_review` | `directorist_reviews` | `directorist_review_embeddings` |
 | `wordpress_post` | `wordpress_content` | `wordpress_content_embeddings` |
 
-`data_sources` stores source labels and retrieval context. `installation_config.allowed_data_source_keys` stores the authoritative retrieval allowlist. Disabling an optional source removes its key from that list but does not delete indexed rows. An explicit delete operation tombstones content.
+`data_sources` stores source labels and retrieval context. `app_config.allowed_data_source_keys` stores the authoritative retrieval allowlist. Disabling an optional source removes its key from that list but does not delete indexed rows. An explicit delete operation tombstones content.
 
 Every retrieval begins by loading the stored allowlist. Model-selected or request-derived keys are intersected with it; neither a chat caller nor a model can expand it. A missing or empty allowlist fails closed with no candidates.
 
