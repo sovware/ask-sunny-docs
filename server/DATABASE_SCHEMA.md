@@ -19,7 +19,7 @@ These extension statements may run only after the deployment compatibility gate.
 ## Core Configuration
 
 ```sql
-CREATE TABLE app_config (
+CREATE TABLE options (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -42,7 +42,7 @@ ON api_keys ((metadata->>'provisioning_id'))
 WHERE key_type = 'wordpress_installation' AND status = 'active';
 ```
 
-`app_config` is a global key/value store with no synthetic identifier. Each setting occupies one
+`options` is a global key/value store with no synthetic identifier. Each setting occupies one
 row. The required keys are `ai_provider`, `ai_chat_model`, `ai_api_key`,
 `ai_api_key_masked`, `ai_provider_updated_at`, `allowed_data_source_keys`,
 `allowed_data_sources_version`, and, after the first allowlist update,
@@ -53,8 +53,8 @@ value may be returned by APIs.
 
 The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
 `admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
-`app_config`. This deliberately invalidates every previously issued installation/admin credential.
-Follow-up cleanup migrations copy the retrieval allowlist into `app_config`, drop
+the configuration store. This deliberately invalidates every previously issued installation/admin
+credential. Follow-up cleanup migrations copy the retrieval allowlist into the configuration store, drop
 `installation_config`, and drop the unused `installation_domains` table.
 
 Allowlist replacement uses one conditional statement that matches the JSON number stored under
@@ -91,7 +91,7 @@ row as audit history.
 
 ## Data Source Metadata
 
-The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into the `app_config` row keyed by `allowed_data_source_keys`; the backend enforces that persisted list for RAG.
+The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into the `options` row keyed by `allowed_data_source_keys`; the backend enforces that persisted list for RAG.
 
 ```sql
 CREATE TABLE data_sources (
@@ -324,7 +324,7 @@ does not store placeholder hashes. All `data_sources` refresh plus matching cont
 transaction. Review writes resolve both the classified parent source and the composite parent listing
 before inserting, returning `409 parent_listing_missing` with no orphan content row when absent.
 
-Registering or refreshing `data_sources` never modifies the `app_config` value keyed by
+Registering or refreshing `data_sources` never modifies the `options` value keyed by
 `allowed_data_source_keys`.
 The same `source_id` remains unique only within its concrete `data_source_id`; it may exist under a
 different source key without collision.

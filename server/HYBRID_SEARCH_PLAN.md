@@ -115,7 +115,7 @@ The same allowed keys and structured predicates must constrain both BM25 and vec
 
 For each normalized query:
 
-1. Load the `app_config` value keyed by `allowed_data_source_keys`; an empty list fails closed.
+1. Load the `options` value keyed by `allowed_data_source_keys`; an empty list fails closed.
 2. Intersect model-selected keys with the persisted list.
 3. Extract validated structured constraints and build kind-specific predicates.
 4. Generate or load the query embedding.

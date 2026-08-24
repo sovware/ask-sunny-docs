@@ -50,7 +50,7 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 - API: Hono.
 - Orchestration: LangGraph.js.
 - Database: PostgreSQL with ParadeDB `pg_search`, pgvector, and `pgcrypto`.
-- Chat generation: provider-neutral adapter selected by the global `app_config` key/value settings.
+- Chat generation: provider-neutral adapter selected by the global `options` key/value settings.
 - Embeddings: independently selected with `EMBEDDING_PROVIDER` and embedding environment settings.
 - Deployment: native services or optional Docker Compose.
 - Response transport: one complete JSON response; no partial token streaming.
@@ -130,7 +130,7 @@ The source-kind repositories remain separate:
 | `directorist_review` | `directorist_reviews` | `directorist_review_embeddings` |
 | `wordpress_post` | `wordpress_content` | `wordpress_content_embeddings` |
 
-`data_sources` stores source labels and retrieval context. The `app_config` value keyed by
+`data_sources` stores source labels and retrieval context. The `options` value keyed by
 `allowed_data_source_keys` stores the authoritative retrieval allowlist. Disabling an optional
 source removes its key from that list but does not delete indexed rows. An explicit delete operation
 tombstones content.

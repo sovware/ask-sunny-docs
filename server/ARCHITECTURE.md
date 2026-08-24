@@ -88,7 +88,7 @@ MAX_TOOL_ITERATIONS=6
 DEFAULT_TIMEZONE=UTC
 ```
 
-The global `app_config` key/value rows store the selected generation provider, encrypted API key, and chat
+The global `options` key/value rows store the selected generation provider, encrypted API key, and chat
 model globally. A provider registry resolves that database record to an adapter implementing the
 provider-neutral generation interface; orchestration, routes, and domain services must not branch
 on provider names. Missing or incomplete stored provider configuration
@@ -184,7 +184,7 @@ Use the configured provider's Responses API for:
 - Complete structured response generation for the widget.
 - Multi-turn continuity through server-side conversation context.
 
-The launch adapter registry includes `openai` and `groq`; the global `app_config` key/value store
+The launch adapter registry includes `openai` and `groq`; the global `options` key/value store
 provider type resolves the matching adapter. Adding a future provider requires registering another
 implementation, not editing orchestration or conversation persistence code. Each adapter owns
 request construction, supported parameters, structured-output validation, tool-call normalization,
