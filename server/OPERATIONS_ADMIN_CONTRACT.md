@@ -14,7 +14,7 @@ Admin routes accept either:
   `admin:read` or `admin:write` scope; or
 - an unexpired opaque admin session created by `POST /admin/sessions` and sent as a bearer token.
 
-The launch provisioning route continues to create only `wordpress_installation` keys with the
+The launch provisioning route creates only `website` keys with the
 server-defined installation scopes. A valid installation key on an admin route returns the same generic
 `403 forbidden` as any authenticated wrong-scope key and does not fall back to session parsing.
 Malformed, unknown, hash-mismatched, expired, disabled-user, and revoked credentials return the
@@ -32,7 +32,7 @@ and rotation remain an operator-controlled secret-management operation outside t
 
 Read routes require `admin:read`; reindex creation requires `admin:write`.
 
-WordPress installation operations are a separate boundary. Active `wordpress_installation` keys
+WordPress installation operations are a separate boundary. Active `website` keys
 receive `operations:read`; this scope authorizes only `GET /installation/diagnostics` and
 `GET /installation/usage`. The migration adds the scope idempotently to existing active installation
 credential metadata without rotating credentials. It does not authorize any `/admin/*` route.

@@ -30,7 +30,7 @@ CREATE TABLE api_keys (
   key_prefix TEXT NOT NULL UNIQUE,
   key_hash TEXT NOT NULL UNIQUE,
   owner_id TEXT NULL,
-  key_type TEXT NOT NULL CHECK (key_type IN ('wordpress_installation', 'admin', 'mobile_service')),
+  key_type TEXT NOT NULL CHECK (key_type IN ('website', 'admin')),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -40,7 +40,7 @@ CREATE TABLE api_keys (
 
 CREATE UNIQUE INDEX api_keys_active_owner_id_uidx
 ON api_keys (owner_id)
-WHERE key_type = 'wordpress_installation' AND status = 'active';
+WHERE key_type = 'website' AND status = 'active';
 ```
 
 `options` is a global key/value store with no synthetic identifier. Each setting occupies one
@@ -86,6 +86,10 @@ The request's trimmed `provisioning_id` is persisted in the WordPress installati
 255 characters, and is compared exactly after that normalization. The `metadata` object contains
 only the fixed `scopes` and a `revocation_reason` after disconnect. The partial unique index on
 `owner_id` enforces at most one active WordPress installation key per identity under concurrency.
+
+Provisioning creates `website` credentials. The only other supported persistent key type is
+`admin`; the obsolete `mobile_service` type is not supported, and migration removes any rows that
+used it.
 
 Provisioning never rotates or revokes an existing key. When an active row already owns the requested
 identity, the transaction returns `409 provisioning_id_already_provisioned` and creates no row. The

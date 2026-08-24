@@ -91,7 +91,7 @@ of the complete high-entropy API key. A provisioned WordPress installation key r
 listed server-defined scopes; the caller cannot add scopes in the request.
 
 The migration that introduces `operations:read` adds it idempotently to every active
-`wordpress_installation` credential's stored scope metadata. It does not rotate or reveal the
+`website` credential's stored scope metadata. It does not rotate or reveal the
 credential, change its status, or grant access to `/admin/*` routes.
 
 If an active key already owns the normalized provisioning identity, provisioning returns
