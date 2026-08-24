@@ -59,7 +59,7 @@ no unsupported factual claim, and returns empty grounded arrays.
 
 ## 4. Provider-Neutral Generation Boundary
 
-The provider registry resolves the singleton global `app_config` AI provider from the database for
+The provider registry resolves the global `app_config` AI provider key/value rows from the database for
 every turn. Only `openai` and `groq` are registered. The globally stored provider type, encrypted API
 key, and chat model are authoritative; generation provider selection and credentials are never
 installation-specific and must not come from process environment variables. Orchestration, tools,

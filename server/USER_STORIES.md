@@ -497,7 +497,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **Acceptance criteria**
 
-1. **Given** a configured OpenAI or Groq provider, **when** health, diagnostics, or chat resolves it, **then** every client uses the singleton encrypted `app_config` record rather than installation metadata or process environment configuration.
+1. **Given** a configured OpenAI or Groq provider, **when** health, diagnostics, or chat resolves it, **then** every client uses the encrypted values in the global `app_config` key/value store rather than installation metadata or process environment configuration.
 2. **Given** a valid provisioning secret and a trimmed `provisioning_id` of at least five characters, **when** provisioning succeeds, **then** a new installation key is returned and only its hash, fixed scopes, and provisioning identity are stored.
 3. **Given** an active key for a `provisioning_id`, **when** the same identity is provisioned again, **then** the server returns `409 provisioning_id_already_provisioned`, creates no credential, and does not revoke or rotate the existing key.
 4. **Given** the active key disconnects, **when** the same `provisioning_id` is provisioned later, **then** a new key may be created while the disconnected key remains revoked.
@@ -505,6 +505,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 6. **Given** an existing database with installation-scoped provider metadata, **when** the forward migration runs, **then** the latest valid provider is copied to global app configuration before provider metadata is removed from every installation key.
 7. **Given** independently configured embeddings, **when** global generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
 8. **Given** legacy authentication, site-identity, and installation-configuration data, **when** the global-configuration cutover migrations run, **then** credentials are cleared, the retrieval allowlist moves into `app_config`, and the unused `installation_config` and `installation_domains` tables are removed.
+9. **Given** the application configuration table, **when** settings are persisted, **then** it has no synthetic ID and stores each setting as a distinct `key` and JSON `value` row.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

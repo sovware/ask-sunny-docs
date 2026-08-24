@@ -113,7 +113,7 @@ same `401 authentication_error`. An authenticated key missing a route's required
 
 Requires any active installation key with `operations:read`. It accepts `ai_provider_type`,
 `ai_model_name`, and `ai_provider_api_key`. The backend validates the provider/model/key combination,
-encrypts the API key, atomically replaces the singleton global `app_config` AI fields, and returns
+encrypts the API key, atomically replaces the related global `app_config` key/value rows, and returns
 only the public provider shape. The configuration applies to every installation. Invalid credentials
 return stable `401` or `503` errors without changing the global configuration or exposing the key.
 
@@ -441,7 +441,7 @@ Tombstones every active record for a key in its source-kind table. WordPress cal
 explicit admin **Delete all indexed data** action or an equivalent deliberate maintenance operation.
 Disabling an optional WordPress source must not call this route. A missing key is an idempotent
 success with zero items. The operation updates only the resolved content table in one transaction and
-never inserts, deletes, or updates `app_config.allowed_data_source_keys`.
+never inserts, deletes, or updates the `app_config` value keyed by `allowed_data_source_keys`.
 
 Request:
 
@@ -787,7 +787,7 @@ Returns operational state.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
-- Chat routes must reject caller-supplied provider overrides; only the singleton global `app_config` provider type, encrypted API key, and chat model are authoritative.
+- Chat routes must reject caller-supplied provider overrides; only the `app_config` key/value settings for provider type, encrypted API key, and chat model are authoritative.
 - Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.
 
 ### Content And Metadata Safety Limits
