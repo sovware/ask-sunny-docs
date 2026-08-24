@@ -386,7 +386,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 1. **Given** an authorized diagnostics request, **when** it runs, **then** it reports native-service or Docker dependency health, ParadeDB extensions and BM25 indexes, hybrid mode, runtime generation/embedding configuration, allowlist version, source counts, and latest indexing state.
 2. **Given** a reindex coordination request, **when** it is accepted, **then** it receives a tracked status while WordPress remains responsible for re-sending source-of-truth content.
-3. **Given** a wrong-scope website key, **when** an admin-only endpoint is called, **then** access is denied.
+3. **Given** an active website key with its fixed `operations:read` scope, **when** an administrative endpoint is called, **then** it is authorized while diagnostics remain projected for the website key type.
 4. **Given** an operational failure, **when** thresholds are exceeded, **then** logs and metrics provide enough correlation to diagnose the affected request or job.
 
 **Tasks**
@@ -509,11 +509,11 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 11. **Given** valid configured admin username and password values, **when** `POST /auth/admin` succeeds, **then** it returns a one-time plaintext `admin` API key with fixed admin scopes and persists no admin user or session row.
 12. **Given** the revised route contract, **when** clients provision, disconnect, inspect diagnostics, or manage AI configuration, **then** they use `/auth/provision`, `/auth/disconnect`, `/system/diagnostics`, and the `/system/ai-config/*` routes, while `/system/provider` and every former usage route are absent.
 13. **Given** any active website or admin API key, **when** it calls `POST /auth/disconnect`, **then** only that presented key is revoked.
-14. **Given** an admin read key, **when** supported routers are requested, **then** the API returns the hardcoded stable compatible router/model catalog without consulting a provider or database.
-15. **Given** an admin write key and a supported router credential, **when** the router is connected or rotated, **then** the key is validated upstream before its encrypted value is atomically stored; invalid or unavailable validation performs no write.
+14. **Given** an authorized admin or website key, **when** supported routers are requested, **then** the API returns the hardcoded stable compatible router/model catalog without consulting a provider or database.
+15. **Given** an authorized admin or website key and a supported router credential, **when** the router is connected or rotated, **then** the key is validated upstream before its encrypted value is atomically stored; invalid or unavailable validation performs no write.
 16. **Given** a connected router and supported model, **when** chat or embedding selection is updated, **then** only the corresponding service selection is replaced and becomes effective without restarting the API.
 17. **Given** a connected router used by either service, **when** that router is disconnected, **then** its credential and every dependent router/model selection are deleted atomically without selecting a fallback router.
-18. **Given** an admin read key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
+18. **Given** an authorized admin or website key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
 19. **Given** any health request, **when** router state is reported, **then** `ai_routers` includes every supported router as a boolean indicating whether its encrypted credential exists, without validating or exposing the credential.
 
 **Dependencies:** SV-US-014, SV-US-015

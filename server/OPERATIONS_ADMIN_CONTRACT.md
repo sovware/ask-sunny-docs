@@ -8,12 +8,13 @@ the backend an editorial source of truth: WordPress still re-sends content for e
 
 ## 2. Admin Authentication
 
-Admin routes accept an active `api_keys.key_type=admin` bearer key whose server-owned metadata
-contains the required `admin:read` or `admin:write` scope.
+Admin routes accept either an active `api_keys.key_type=admin` bearer key with the required
+`admin:read` or `admin:write` scope, or an active `api_keys.key_type=website` bearer key with its
+fixed `operations:read` scope.
 
-The launch provisioning route creates only `website` keys with the
-server-defined installation scopes. A valid website key on an admin route returns `403 forbidden`.
-Malformed, unknown, hash-mismatched, and revoked credentials return the generic
+The launch provisioning route creates `website` keys with server-defined installation scopes;
+those keys may access the administrative routes described by this contract. Malformed, unknown,
+hash-mismatched, and revoked credentials return the generic
 `401 authentication_error`. Only successful authorization updates key last-use.
 
 `POST /auth/admin` is the admin-key provisioning boundary. Its strict body contains `username` and
@@ -23,11 +24,13 @@ normalized username with fixed `admin:read` and `admin:write` scopes. The plaint
 returned once, and only its prefix and SHA-256 digest are persisted. Login failures never reveal
 which field differed and never log credentials. There are no admin-user or admin-session tables.
 
-Read routes require `admin:read`; reindex creation requires `admin:write`.
+For admin keys, read routes require `admin:read` and mutations require `admin:write`. Website keys
+use `operations:read` for both read and mutation routes; authorization still validates the stored
+key type and server-owned fixed scope.
 
-WordPress installation operations are a separate boundary. Active `website` keys receive
-`operations:read`; this scope authorizes only the website projection from `GET /system/diagnostics`.
-AI configuration and safe option reads require admin scopes and do not authorize website keys.
+Active `website` keys receive `operations:read`; this scope authorizes the website diagnostics
+projection, AI configuration, safe option inspection, and reindex coordination. Diagnostics remain
+projected by key type, so website keys do not receive admin-only deployment details.
 
 ## 3. Diagnostics
 
@@ -68,7 +71,8 @@ Keys must be a non-empty subset of currently stored data-source descriptors and 
 a retained source. The route inserts one record and returns `202` with `ok`, `job_id`,
 `status=awaiting_wordpress`, requested keys, and `created_at`.
 
-`GET /admin/reindex/:job_id` requires `admin:read` and returns that same bounded record or a generic
+`GET /admin/reindex/:job_id` requires `admin:read` for admin keys or `operations:read` for website
+keys and returns that same bounded record or a generic
 `404 reindex_job_not_found`. The admin projection of `GET /system/diagnostics` exposes the latest record. No backend worker
 claims to rebuild WordPress content. The administrator/plugin uses the record as coordination,
 causes WordPress to re-send eligible source-of-truth payloads through normal idempotent content

@@ -131,8 +131,8 @@ generic `401 authentication_error`. No admin user or session record is created.
 
 ### AI configuration routes
 
-All AI configuration routes use the `/system/ai-config` prefix and accept only admin API keys.
-Reads require `admin:read`; mutations require `admin:write`.
+All AI configuration routes use the `/system/ai-config` prefix. Admin keys require `admin:read` for
+reads or `admin:write` for mutations; website keys require their fixed `operations:read` scope.
 
 - `GET /system/ai-config/routers` returns the hardcoded OpenAI, Groq, and Gemini router catalog with
   compatible text and embedding model IDs.
@@ -147,7 +147,8 @@ Reads require `admin:read`; mutations require `admin:write`.
 - `PUT /system/ai-config/embedding` applies the equivalent embedding selection and reports
   `reindex_required=true` when indexed content exists and the selection changed.
 
-`GET /system/options` requires `admin:read` and returns explicitly classified safe option rows plus
+`GET /system/options` requires `admin:read` for admin keys or `operations:read` for website keys and
+returns explicitly classified safe option rows plus
 per-router configured booleans. Encrypted credentials, plaintext, masked fragments, and unknown
 option keys are never returned. The retired `POST /system/provider` route is absent.
 
