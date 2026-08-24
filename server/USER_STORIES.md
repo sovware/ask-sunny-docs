@@ -348,15 +348,15 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 4. **Given** a successful turn, **when** `POST /chat` returns, **then** one non-streaming JSON payload contains the conversation ID, message ID, answer, recommendations, and optional follow-up questions.
 5. **Given** a retrieval, model, schema, or timeout failure, **when** the turn ends, **then** the server returns a stable friendly error/fallback, persists the failure, and does not present unsupported claims.
 6. **Given** caller-supplied SQL, model overrides, raw tool names, or allowed-source settings, **when** validation runs, **then** those values cannot alter server policy or execution.
-7. **Given** `AI_PROVIDER=openai`, **when** a turn runs, **then** the OpenAI adapter uses only OpenAI environment configuration and returns the common internal response shape.
-8. **Given** `AI_PROVIDER=groq`, **when** a turn runs, **then** the Groq adapter uses only Groq environment configuration, excludes unsupported provider parameters, supplies server-owned conversation history, and returns the same internal response shape.
-9. **Given** an invalid provider value or missing selected-provider configuration, **when** the service starts, **then** startup fails without exposing any API key.
+7. **Given** a stored OpenAI installation provider, **when** a turn runs, **then** the OpenAI adapter uses only that database-backed configuration and returns the common internal response shape.
+8. **Given** a stored Groq installation provider, **when** a turn runs, **then** the Groq adapter uses only that database-backed configuration, excludes unsupported provider parameters, supplies server-owned conversation history, and returns the same internal response shape.
+9. **Given** missing or invalid stored provider configuration, **when** chat is requested, **then** the request fails early without exposing any API key.
 10. **Given** any conversation, message, tool-call, or usage record, **when** it is persisted, **then** no AI-provider discriminator or provider-specific conversation state is written to the database.
 
 **Tasks**
 
-- [ ] Add `AI_PROVIDER=openai|groq` as the single chat-generation switch.
-- [ ] Add environment-only OpenAI and Groq keys, base URLs, models, and shared provider timeout.
+- [ ] Add database-backed OpenAI and Groq generation selection and credentials.
+- [ ] Keep non-secret provider base URLs and the shared provider timeout in deployment configuration.
 - [ ] Keep embedding provider, model, URL, and dimensions independently configured.
 - [ ] Implement a common generation-provider interface with OpenAI and Groq Responses adapters.
 - [ ] Resolve adapters through a runtime registry so orchestration, routes, domain services, and persistence contain no provider-name branches.
@@ -380,24 +380,23 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **User story**
 
-> As a **server operator**, I want diagnostics, usage reporting, and controlled reindex coordination, so that I can detect failures and support the WordPress integration.
+> As a **server operator**, I want diagnostics and controlled reindex coordination, so that I can detect failures and support the WordPress integration.
 
 **Acceptance criteria**
 
 1. **Given** an authorized diagnostics request, **when** it runs, **then** it reports native-service or Docker dependency health, ParadeDB extensions and BM25 indexes, hybrid mode, runtime generation/embedding configuration, allowlist version, source counts, and latest indexing state.
-2. **Given** an authorized usage query with a date range, **when** it runs, **then** it returns chat, indexing, latency, token, BM25/vector/fused retrieval, fallback, and error aggregates without exposing private message content or persisting provider identity.
-3. **Given** a reindex coordination request, **when** it is accepted, **then** it receives a tracked status while WordPress remains responsible for re-sending source-of-truth content.
-4. **Given** a wrong-scope installation key, **when** an admin-only endpoint is called, **then** access is denied.
-5. **Given** an operational failure, **when** thresholds are exceeded, **then** logs and metrics provide enough correlation to diagnose the affected request or job.
+2. **Given** a reindex coordination request, **when** it is accepted, **then** it receives a tracked status while WordPress remains responsible for re-sending source-of-truth content.
+3. **Given** an active website key with its fixed `operations:read` scope, **when** an administrative endpoint is called, **then** it is authorized while diagnostics remain projected for the website key type.
+4. **Given** an operational failure, **when** thresholds are exceeded, **then** logs and metrics provide enough correlation to diagnose the affected request or job.
 
 **Tasks**
 
-- [ ] Implement `GET /admin/diagnostics` and `GET /admin/usage`.
+- [ ] Implement the admin projection of `GET /system/diagnostics`.
 - [ ] Implement `POST /admin/reindex` as a tracked coordination boundary.
-- [ ] Add admin key/session scope enforcement.
+- [ ] Add admin API-key scope enforcement.
 - [ ] Instrument chat, BM25/vector/fused retrieval, indexing, database-pool, selected-provider, embedding-provider, and error metrics.
 - [ ] Add health, latency, error-rate, rate-limit, and stale-index alert guidance.
-- [ ] Add diagnostics, usage, authorization, and privacy tests.
+- [ ] Add diagnostics, authorization, and privacy tests.
 
 **Dependencies:** SV-US-007, SV-US-011  
 **Priority:** Must have
@@ -447,20 +446,20 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **User story**
 
-> As a **WordPress administrator**, I want installation-scoped diagnostics and usage telemetry, so that I can operate the integration without receiving a backend administrator credential.
+> As a **WordPress administrator**, I want website-scoped diagnostics, so that I can operate the integration without receiving a backend administrator credential.
 
 **Acceptance criteria**
 
-1. **Given** an active WordPress installation key with `operations:read`, **when** installation diagnostics or usage is requested, **then** only the safe operational projection required by the plugin is returned.
+1. **Given** an active website key with `operations:read`, **when** system diagnostics is requested, **then** only the safe operational projection required by the plugin is returned.
 2. **Given** an existing active WordPress installation key, **when** the scope migration runs, **then** `operations:read` is added idempotently without changing its secret, status, or other scopes.
-3. **Given** an installation key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative session or write authority.
-4. **Given** diagnostics or usage data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, content-record identities, raw errors, and admin-only deployment details are absent while bounded counts may remain grouped by data-source key.
-5. **Given** a degraded dependency or bounded usage query, **when** the route responds, **then** it preserves the documented stable shape, validation, and correlation behavior.
+3. **Given** a website key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative write authority.
+4. **Given** diagnostics data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, content-record identities, raw errors, and admin-only deployment details are absent while bounded counts may remain grouped by data-source key.
+5. **Given** a degraded dependency, **when** the route responds, **then** it preserves the documented stable shape and correlation behavior.
 
 **Tasks**
 
 - [ ] Add `operations:read` to new WordPress installation credentials and migrate active existing credential metadata idempotently.
-- [ ] Add `GET /installation/diagnostics` and `GET /installation/usage` behind installation authentication.
+- [ ] Add the website projection of `GET /system/diagnostics` behind API-key authentication.
 - [ ] Reuse the operations service through explicit safe installation projections rather than exposing `/admin/*` responses directly.
 - [ ] Document request, response, authorization, validation, privacy, and degraded-state contracts.
 - [ ] Add migration, provisioning, authorization, scoping, privacy, validation, route, and OpenAPI tests.
@@ -487,6 +486,40 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 **Dependencies:** SV-US-011
 **Priority:** Must have
 
+### SV-US-016 — Configure multiple AI routers and immutable identities
+
+**Normative contracts:** [`GROUNDED_CHAT_CONTRACT.md`](GROUNDED_CHAT_CONTRACT.md), [`REST_API_CONTRACT.md`](REST_API_CONTRACT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md)
+
+**User story**
+
+> As a **server operator**, I want multiple connected AI routers with independent chat and embedding selections, so that each service can use an explicitly configured router/model while credentials remain global, encrypted, and revocable.
+
+**Acceptance criteria**
+
+1. **Given** configured OpenAI, Groq, or Gemini routers, **when** chat or embedding work resolves its selection, **then** it uses the encrypted router credential and service-specific router/model values in `options`, never installation metadata or provider/model/key environment configuration.
+2. **Given** a valid provisioning secret and a trimmed `provisioning_id` of at least five characters, **when** provisioning succeeds, **then** a new `website` key is returned, its identity is stored in `api_keys.owner_id`, and only its hash and fixed scopes are otherwise persisted.
+3. **Given** an active key for a `provisioning_id`, **when** the same identity is provisioned again, **then** the server returns `409 provisioning_id_already_provisioned`, creates no credential, and does not revoke or rotate the existing key.
+4. **Given** the active key disconnects, **when** the same `provisioning_id` is provisioned later, **then** a new key may be created while the disconnected key remains revoked.
+5. **Given** missing, incomplete, disconnected, or undecryptable chat or embedding configuration, **when** the related service is requested, **then** it returns `503 chat_ai_not_configured` or `503 embedding_ai_not_configured` before conversation, retrieval, indexing, mutation, tool, or router work begins.
+6. **Given** an existing database with installation-scoped provider metadata, **when** the forward migration runs, **then** the latest valid provider is copied to global app configuration before provider metadata is removed from every installation key.
+7. **Given** independently configured chat and embedding selections, **when** one selection changes, **then** the other remains unchanged; embedding dimensions remain fixed at 1536 and a changed embedding selection reports whether reindexing is required.
+8. **Given** legacy authentication, site-identity, and installation-configuration data, **when** the global-configuration cutover migrations run, **then** credentials are cleared, the retrieval allowlist moves into the application configuration store, and the unused `installation_config` and `installation_domains` tables are removed.
+9. **Given** the application configuration table, **when** settings are persisted, **then** it is named `options`, has no synthetic ID, and stores each setting as a distinct `key` and JSON `value` row.
+10. **Given** application code needs to manage settings, **when** it accesses persistence, **then** the option repository exposes only generic `insert`, `get`, `update`, `delete`, `getByKeys`, and `updateMany` operations, contains no provider-specific helpers, and `updateMany` accepts only the option items.
+11. **Given** valid configured admin username and password values, **when** `POST /auth/admin` succeeds, **then** it returns a one-time plaintext `admin` API key with fixed admin scopes and persists no admin user or session row.
+12. **Given** the revised route contract, **when** clients provision, disconnect, inspect diagnostics, or manage AI configuration, **then** they use `/auth/provision`, `/auth/disconnect`, `/system/diagnostics`, and the `/system/ai-config/*` routes, while `/system/provider` and every former usage route are absent.
+13. **Given** any active website or admin API key, **when** it calls `POST /auth/disconnect`, **then** only that presented key is revoked.
+14. **Given** an authorized admin or website key, **when** supported routers are requested, **then** the API returns the hardcoded stable compatible router/model catalog without consulting a provider or database.
+15. **Given** an authorized admin or website key and a supported router credential, **when** the router is connected or rotated, **then** the key is validated upstream before its encrypted value is atomically stored; invalid or unavailable validation performs no write.
+16. **Given** a connected router and supported model, **when** chat or embedding selection is updated, **then** only the corresponding service selection is replaced and becomes effective without restarting the API.
+17. **Given** a connected router used by either service, **when** that router is disconnected, **then** its credential and every dependent router/model selection are deleted atomically without selecting a fallback router.
+18. **Given** an authorized admin or website key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
+19. **Given** any health request, **when** router state is reported, **then** `ai_routers` includes every supported router as a boolean indicating whether its encrypted credential exists, without validating or exposing the credential.
+20. **Given** an active `website` key with `operations:read`, **when** it calls an `/admin/*`, `/system/ai-config/*`, or `/system/options` route, **then** it is authorized by key type while admin keys continue to require their admin read/write scopes.
+
+**Dependencies:** SV-US-014, SV-US-015
+**Priority:** Must have
+
 ## Recommended Story Order
 
 1. SV-US-001 → SV-US-004: service, database, authentication, and retrieval policy.
@@ -495,6 +528,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 4. SV-US-010 and SV-US-011: durable conversation and grounded chat.
 5. SV-US-012 → SV-US-014: operations, security, resilience, release, and WordPress-safe telemetry.
 6. SV-US-015: complete conversation message restoration.
+7. SV-US-016: database-backed generation provider authority.
 
 ## Related Specifications
 

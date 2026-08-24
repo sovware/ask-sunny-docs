@@ -19,28 +19,9 @@ These extension statements may run only after the deployment compatibility gate.
 ## Core Configuration
 
 ```sql
-CREATE TABLE installation_config (
-  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id = true),
-  installation_name TEXT NOT NULL DEFAULT 'WordPress Site',
-  primary_domain TEXT NOT NULL,
-  wordpress_site_url TEXT NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'UTC',
-  allowed_data_source_keys TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  allowed_data_sources_version BIGINT NOT NULL DEFAULT 0,
-  allowed_data_sources_updated_at TIMESTAMPTZ NULL,
-  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX installation_allowed_data_sources_gin_idx
-ON installation_config USING GIN (allowed_data_source_keys);
-
-CREATE TABLE installation_domains (
-  domain TEXT PRIMARY KEY,
-  wordpress_site_url TEXT NOT NULL UNIQUE,
-  installation_name TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+CREATE TABLE options (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -48,18 +29,41 @@ CREATE TABLE api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   key_prefix TEXT NOT NULL UNIQUE,
   key_hash TEXT NOT NULL UNIQUE,
-  key_type TEXT NOT NULL CHECK (key_type IN ('wordpress_installation', 'admin', 'mobile_service')),
+  owner_id TEXT NULL,
+  key_type TEXT NOT NULL CHECK (key_type IN ('website', 'admin')),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_used_at TIMESTAMPTZ NULL,
   revoked_at TIMESTAMPTZ NULL
 );
+
+CREATE UNIQUE INDEX api_keys_active_owner_id_uidx
+ON api_keys (owner_id)
+WHERE key_type = 'website' AND status = 'active';
 ```
 
-Allowlist replacement uses one conditional statement that matches
-`allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
-the version by exactly one, and sets `allowed_data_sources_updated_at` from the database clock. A
+`options` is a global key/value store with no synthetic identifier. Each setting occupies one row.
+AI credential keys are `openai_api_key`, `groq_api_key`, and `gemini_api_key`; each present value is
+AES-256-GCM ciphertext protected by the server encryption key. Service selections use
+`chat_ai_router`, `chat_ai_model`, `embedding_ai_router`, and `embedding_ai_model`. Retrieval uses
+`allowed_data_source_keys`, `allowed_data_sources_version`, and, after the first allowlist update,
+`allowed_data_sources_updated_at`. AI configuration applies to every installation and must never be
+copied into `api_keys.metadata`. Credential option values and masked fragments are never returned.
+
+Single and bulk option writes assign the row `updated_at` value with the database clock. Callers do
+not provide this persistence timestamp.
+
+The global-configuration cutover clears all existing rows from `api_keys`, the former admin
+authentication tables, and the legacy `installation_domains` registry after the provider has been copied to
+the configuration store. This deliberately invalidates every previously issued installation/admin
+credential. Follow-up cleanup migrations copy the retrieval allowlist into the configuration store, drop
+`installation_config`, and drop the unused `installation_domains` table.
+
+Allowlist replacement uses one conditional statement that matches the JSON number stored under
+`allowed_data_sources_version` to `expected_version`, writes the complete canonical array under
+`allowed_data_source_keys`, increments the version by exactly one, and stores the database clock
+under `allowed_data_sources_updated_at`. A
 zero-row update is `409 retrieval_config_conflict`; it must not retry against a newer version or
 partially alter the array. The initial version is `0`, including before the first allowlist sync.
 
@@ -76,17 +80,25 @@ For WordPress installation credentials, `key_prefix` is the unique
 digest of the complete high-entropy API key. The digest is used only after the prefix selects a
 candidate row and is compared in constant time. Plaintext keys are never persisted.
 
-The `metadata` object for a WordPress installation key contains its fixed `scopes`, a
-canonical `domain`, `wordpress_site_url`, `rotation_id`, and either `rotated_from_key_ids` on the
-newly issued key or `revocation_reason` plus `replaced_by_key_id` on keys revoked by rotation.
-Provisioning/rotation atomically upserts the domain registry row, ensures the singleton
-`installation_config` row exists for shared settings, inserts the new key, and revokes every
-previously active `wordpress_installation` key for the same canonical domain only. Credentials for
-other registered domains remain active. A failed transaction must leave the prior credential active.
+The request's trimmed `provisioning_id` is persisted in the WordPress installation key's dedicated
+`owner_id` column. A provisioning identity accepts any Unicode string after trimming, is 5 through
+255 characters, and is compared exactly after that normalization. The `metadata` object contains
+only the fixed `scopes` and a `revocation_reason` after disconnect. The partial unique index on
+`owner_id` enforces at most one active WordPress installation key per identity under concurrency.
+
+Provisioning creates `website` credentials. The only other supported persistent key type is
+`admin`; the obsolete `mobile_service` type is not supported, and migration removes any rows that
+used it.
+
+Provisioning never rotates or revokes an existing key. When an active row already owns the requested
+identity, the transaction returns `409 provisioning_id_already_provisioned` and creates no row. The
+existing authenticated key must call disconnect first; disconnect revokes only that key. A later
+provisioning request for the same identity may then create a new key while preserving the revoked
+row as audit history.
 
 ## Data Source Metadata
 
-The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into `installation_config.allowed_data_source_keys`; the backend enforces that persisted list for RAG.
+The backend stores the identity and retrieval context of data sources represented by received content. It does not reproduce the WordPress settings UI or indexing-filter configuration. WordPress computes the allowed keys from its local settings and synchronizes them into the `options` row keyed by `allowed_data_source_keys`; the backend enforces that persisted list for RAG.
 
 ```sql
 CREATE TABLE data_sources (
@@ -319,7 +331,8 @@ does not store placeholder hashes. All `data_sources` refresh plus matching cont
 transaction. Review writes resolve both the classified parent source and the composite parent listing
 before inserting, returning `409 parent_listing_missing` with no orphan content row when absent.
 
-Registering or refreshing `data_sources` never modifies `installation_config.allowed_data_source_keys`.
+Registering or refreshing `data_sources` never modifies the `options` value keyed by
+`allowed_data_source_keys`.
 The same `source_id` remains unique only within its concrete `data_source_id`; it may exist under a
 different source key without collision.
 
@@ -502,29 +515,14 @@ CREATE INDEX usage_events_type_idx ON usage_events (event_type);
 -- allowlist version, safe limits, source-kind count, candidate counts, and branch latencies. Query
 -- text, filters, result identities/content, raw scores, vectors, SQL, and provider identity are forbidden.
 
-CREATE TABLE admin_users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  display_name TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE admin_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-  session_hash TEXT NOT NULL UNIQUE,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE schema_migrations (
   version TEXT PRIMARY KEY,
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+Admin authentication uses `api_keys.key_type=admin`. The admin username is stored as `owner_id`,
+fixed admin scopes are stored in metadata, and no separate admin-user or session table exists.
 
 ## LangGraph Checkpoints
 

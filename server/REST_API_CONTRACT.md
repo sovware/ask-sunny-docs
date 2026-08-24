@@ -41,25 +41,36 @@ Returns server health.
     "status": "enabled",
     "reason": null
   },
-  "ai_provider": "openai",
+  "chat_ai_router": "openai",
+  "chat_ai_model": "gpt-5.4-mini",
+  "embedding_ai_router": "openai",
+  "embedding_ai_model": "text-embedding-3-small",
+  "ai_routers": {
+    "openai": true,
+    "groq": false,
+    "gemini": false
+  },
   "redis": "disabled"
 }
 ```
 
 `hybrid_search.status` may report `disabled` or `degraded` when package compatibility is unproven, `pg_search`, a required BM25 index, or smoke verification is unavailable. Health must not report BM25 as enabled merely because the environment flag is set. A requested-but-ineffective hybrid configuration reports `requested: true`, `effective: false`, and a stable reason code.
 
-### `POST /auth/provision-installation`
+`ai_routers` contains every supported router key. A value is `true` only when that router has an
+encrypted credential row in `options`; it does not imply that an upstream request was made during
+the health check or that either AI service currently selects that router.
 
-Creates or rotates the WordPress installation API key. Uses the provisioning secret, not an existing installation key.
+### `POST /auth/provision`
+
+Creates a WordPress installation API key for one unprovisioned identity. Uses the provisioning
+secret, not an existing installation key, and never rotates an active credential.
 
 Request:
 
 ```json
 {
   "provisioning_key": "long-shared-secret",
-  "domain": "example.com",
-  "wordpress_site_url": "https://example.com",
-  "installation_name": "Example WordPress Site"
+  "provisioning_id": "wordpress-production"
 }
 ```
 
@@ -77,20 +88,13 @@ Response:
     "conversations:read",
     "operations:read"
   ],
-  "rotated_previous_key": false,
-  "installation": {
-    "domain": "example.com",
-    "timezone": "UTC"
-  }
+  "provisioning_id": "wordpress-production"
 }
 ```
 
-`domain` is a lower-case hostname without a scheme, port, path, query, or fragment.
-`wordpress_site_url` is an absolute HTTPS URL whose hostname exactly matches `domain`; subdirectory
-installations may retain a path, while query and fragment components are rejected. The backend trims
-the installation name, canonicalizes the identity, and registers that domain for the singleton
-backend. Later requests may register additional canonical domains served by the same backend; each
-domain receives and rotates its own credential without revoking credentials for other domains.
+`provisioning_id` accepts any string after trimming surrounding whitespace, must contain 5 through
+255 characters, and is stored exactly after trimming. The request rejects every field other than
+`provisioning_key` and `provisioning_id`.
 
 The key format is `ask_live_<16-lowercase-hex-key-id>_<43-character-base64url-secret>`. The unique
 `key_prefix` is the format through the key-id segment and may be logged for credential identification;
@@ -99,16 +103,14 @@ of the complete high-entropy API key. A provisioned WordPress installation key r
 listed server-defined scopes; the caller cannot add scopes in the request.
 
 The migration that introduces `operations:read` adds it idempotently to every active
-`wordpress_installation` credential's stored scope metadata. It does not rotate or reveal the
+`website` credential's stored scope metadata. It does not rotate or reveal the
 credential, change its status, or grant access to `/admin/*` routes.
 
-Provisioning is also the rotation operation for a canonical domain. The first successful request for
-a domain returns `rotated_previous_key: false`. A later successful request for the same canonical
-domain creates a new key, immediately revokes every prior active `wordpress_installation` key for
-that domain in the same database transaction, returns `rotated_previous_key: true`, and writes
-cross-referenced rotation metadata on the new and revoked rows. If any part of the transaction
-fails, the previous key remains active and no new key is issued. The plaintext key is returned only
-in this response and cannot be recovered.
+If an active key already owns the normalized provisioning identity, provisioning returns
+`409 provisioning_id_already_provisioned`, creates no key, and leaves the existing credential
+unchanged. The existing key must successfully call `POST /auth/disconnect` before that
+identity can be provisioned again. Disconnect never reveals or rotates a key. The plaintext key is
+returned only in its successful provisioning response and cannot be recovered.
 
 An invalid provisioning secret returns the same `401 authentication_error` used for invalid bearer
 credentials and performs no installation or key write. Provisioning-secret comparison is
@@ -118,6 +120,43 @@ For protected routes, malformed, unknown, hash-mismatched, and revoked bearer ke
 same `401 authentication_error`. An authenticated key missing a route's required scope returns
 `403 forbidden` without naming the missing scope. Only a fully authorized request updates
 `last_used_at`.
+
+### `POST /auth/admin`
+
+Validates a strict `username` and `password` request against `ASK_SUNNY_ADMIN_USERNAME` and
+`ASK_SUNNY_ADMIN_PASSWORD`, then creates a persistent `admin` API key with `admin:read` and
+`admin:write` scopes. The response returns the plaintext API key once, using the same key format as
+website provisioning; only its prefix and SHA-256 digest are stored. Invalid credentials return the
+generic `401 authentication_error`. No admin user or session record is created.
+
+### AI configuration routes
+
+All AI configuration routes use the `/system/ai-config` prefix. Admin keys require `admin:read` for
+reads or `admin:write` for mutations; website keys require their fixed `operations:read` scope.
+
+- `GET /system/ai-config/routers` returns the hardcoded OpenAI, Groq, and Gemini router catalog with
+  compatible text and embedding model IDs.
+- `POST /system/ai-config/routers` accepts exactly `router_type` and `api_key`, validates the key
+  against the selected router before encrypting and atomically inserting or rotating it, and never
+  returns key material.
+- `DELETE /system/ai-config/routers/{router_type}` idempotently removes that credential and
+  atomically clears every chat or embedding selection that references it. It never selects a
+  fallback router.
+- `PUT /system/ai-config/chat` accepts exactly `router_type` and `model`, requires a connected
+  router and catalogued text model, and atomically replaces `chat_ai_router` and `chat_ai_model`.
+- `PUT /system/ai-config/embedding` applies the equivalent embedding selection and reports
+  `reindex_required=true` when indexed content exists and the selection changed.
+
+`GET /system/options` requires `admin:read` for admin keys or `operations:read` for website keys and
+returns explicitly classified safe option rows plus
+per-router configured booleans. Encrypted credentials, plaintext, masked fragments, and unknown
+option keys are never returned. The retired `POST /system/provider` route is absent.
+
+### `POST /auth/disconnect`
+
+Requires any active `website` or `admin` API key. It revokes only the presented key and records the
+generic disconnect reason. After disconnect succeeds, the key receives `401 authentication_error`
+on every protected route. A disconnected website key's `provisioning_id` may be provisioned again.
 
 ## Retrieval Configuration Routes
 
@@ -206,8 +245,8 @@ Response:
 ```
 
 Before the first sync, the response contains an empty list, version `0`, and `updated_at: null`.
-This route is the narrow installation-facing diagnostic surface; it does not weaken the separate
-admin-authentication requirement for `GET /admin/diagnostics`.
+This route is the narrow retrieval-configuration surface; it does not weaken the separate admin-key
+requirement for the administrative projection of `GET /system/diagnostics`.
 
 The list uses concrete `data_source_key` classifications rather than broad `source_kind` values. For example, `directorist:events` and `directorist:events:reviews` can be allowed independently even though both are Directorist data.
 
@@ -437,7 +476,7 @@ Tombstones every active record for a key in its source-kind table. WordPress cal
 explicit admin **Delete all indexed data** action or an equivalent deliberate maintenance operation.
 Disabling an optional WordPress source must not call this route. A missing key is an idempotent
 success with zero items. The operation updates only the resolved content table in one transaction and
-never inserts, deletes, or updates `installation_config.allowed_data_source_keys`.
+never inserts, deletes, or updates the `options` value keyed by `allowed_data_source_keys`.
 
 Request:
 
@@ -500,7 +539,10 @@ The chat caller does not provide `allowed_data_source_keys`. The backend loads i
 
 `channel` accepts `web`, `mobile`, or `admin_test`. WordPress sends `web` for the public widget and `admin_test` only from its capability-protected Test Chat route. Channel is product context, not an AI-provider selector.
 
-The chat caller also cannot choose the AI provider or model. The server uses `AI_PROVIDER` and the selected provider's environment configuration for the entire turn.
+The chat caller cannot override the AI router or model. The server resolves the application-wide
+database-backed chat selection and connected router credential for the entire turn. Missing or
+incomplete configuration returns `503 chat_ai_not_configured` before a conversation turn,
+retrieval, tool, or upstream router call is created.
 
 SV-US-008 adds no public retrieval endpoint. `search_content` and `get_content_detail` are
 server-owned application/tool boundaries used by the later chat workflow. Their validated filter
@@ -591,18 +633,19 @@ Missing, mismatched, deleted, and malformed conversation IDs share:
 }
 ```
 
-## Installation Operations Routes
+## System Operations Routes
 
-These routes require an active WordPress installation credential with `operations:read`. They are
-safe, read-only projections for the WordPress plugin and do not accept an admin key/session in place
-of installation authentication. Installation credentials remain forbidden from every `/admin/*`
-route.
+System routes accept only active API keys. Website credentials use their bounded operational
+projection; admin credentials receive the administrative projection when their scopes authorize it.
+Website credentials remain forbidden from every `/admin/*` route.
 
-### `GET /installation/diagnostics`
+### `GET /system/diagnostics`
 
-Returns the bounded operational state needed by WordPress without credentials, URLs, visitor or
+Requires `operations:read` for a `website` key or `admin:read` for an `admin` key. Website requests
+return the bounded operational state needed by WordPress without credentials, URLs, visitor or
 conversation data, query/content text, raw errors, pool details, package-install coordinates, or
-other admin-only deployment data.
+other admin-only deployment data. Admin requests return the full safe administrative diagnostics
+projection documented below.
 
 ```json
 {
@@ -631,26 +674,10 @@ other admin-only deployment data.
 Dependency probe failures preserve this shape with safe `unavailable` or `degraded` values and a
 stable reason. The projection is read-only and bounded to the provisioned installation's data.
 
-### `GET /installation/usage`
-
-Uses the same `from`, `to`, and optional `event_type` validation as `GET /admin/usage`, including the
-92-day maximum range. It returns only the installation's totals and UTC daily buckets from the safe
-usage projection documented in the operations contract.
-
-```json
-{
-  "from": "2026-07-01T00:00:00Z",
-  "to": "2026-07-20T00:00:00Z",
-  "event_type": null,
-  "totals": {"events": 150, "successes": 147, "errors": 3, "average_latency_ms": 420, "p95_latency_ms": 900},
-  "daily": []
-}
-```
-
 ## Admin Routes
 
-Admin routes require an admin API key or admin session.
-Exact session, scope, diagnostics, usage, reindex tracking, privacy, and failure behavior is
+Admin routes require an admin API key.
+Exact scope, diagnostics, reindex tracking, privacy, and failure behavior is
 normative in [`OPERATIONS_ADMIN_CONTRACT.md`](OPERATIONS_ADMIN_CONTRACT.md).
 
 ### `POST /admin/reindex`
@@ -676,30 +703,7 @@ Response:
 }
 ```
 
-### `GET /admin/usage`
-
-Returns usage and latency metrics.
-
-Query parameters:
-
-- `from`
-- `to`
-- `event_type`
-
-Response:
-
-```json
-{
-  "totals": {
-    "chat_turns": 120,
-    "indexing_events": 30,
-    "errors": 2
-  },
-  "daily": []
-}
-```
-
-### `GET /admin/diagnostics`
+### Admin projection from `GET /system/diagnostics`
 
 Returns operational state.
 
@@ -780,7 +784,7 @@ Returns operational state.
 - Deleted content requires only `data_source_key` and `source_id`.
 - WordPress applies indexing filters before sending content and synchronizes source allowance separately. Every backend candidate query, vector search, detail lookup used by RAG, and model tool call must constrain results to the stored allowlist.
 - Chat routes must never accept raw SQL, arbitrary tool names, or model overrides from clients.
-- Chat routes must reject or ignore caller-supplied `ai_provider`, provider API keys, base URLs, and model names; only environment configuration is authoritative.
+- Chat routes must reject caller-supplied provider overrides; only the `options` key/value settings for provider type, encrypted API key, and chat model are authoritative.
 - Hybrid retrieval must constrain both BM25 and vector candidates to persisted allowed data-source keys and active records before fusion.
 
 ### Content And Metadata Safety Limits

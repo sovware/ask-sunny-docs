@@ -2,44 +2,39 @@
 
 ## 1. Scope
 
-This contract is normative for SV-US-012. It fixes admin authentication, diagnostics, privacy-safe
-usage aggregation, reindex coordination, operational metrics, and alert guidance. It does not make
+This contract is normative for SV-US-012. It fixes admin authentication, diagnostics, reindex
+coordination, operational metrics, and alert guidance. It does not make
 the backend an editorial source of truth: WordPress still re-sends content for every reindex.
 
 ## 2. Admin Authentication
 
-Admin routes accept either:
+Admin routes accept either an active `api_keys.key_type=admin` bearer key with the required
+`admin:read` or `admin:write` scope, or an active `api_keys.key_type=website` bearer key with its
+fixed `operations:read` scope.
 
-- an active `api_keys.key_type=admin` bearer key whose server-owned metadata contains the required
-  `admin:read` or `admin:write` scope; or
-- an unexpired opaque admin session created by `POST /admin/sessions` and sent as a bearer token.
+The launch provisioning route creates `website` keys with server-defined installation scopes;
+those keys may access the administrative routes described by this contract. Malformed, unknown,
+hash-mismatched, and revoked credentials return the generic
+`401 authentication_error`. Only successful authorization updates key last-use.
 
-The launch provisioning route continues to create only `wordpress_installation` keys with the
-server-defined installation scopes. A valid installation key on an admin route returns the same generic
-`403 forbidden` as any authenticated wrong-scope key and does not fall back to session parsing.
-Malformed, unknown, hash-mismatched, expired, disabled-user, and revoked credentials return the
-generic `401 authentication_error`. Only successful authorization updates key/session last-use.
+`POST /auth/admin` is the admin-key provisioning boundary. Its strict body contains `username` and
+`password`; it validates against `ASK_SUNNY_ADMIN_USERNAME` and `ASK_SUNNY_ADMIN_PASSWORD` using
+constant-time comparisons, then creates an `api_keys.key_type=admin` credential owned by the
+normalized username with fixed `admin:read` and `admin:write` scopes. The plaintext API key is
+returned once, and only its prefix and SHA-256 digest are persisted. Login failures never reveal
+which field differed and never log credentials. There are no admin-user or admin-session tables.
 
-`POST /admin/sessions` is the bootstrap login boundary. Its strict body contains `email` and
-`password`; it validates against `ASK_SUNNY_ADMIN_EMAIL` and `ASK_SUNNY_ADMIN_PASSWORD` using
-constant-time comparisons, upserts the configured admin user with a one-way password hash, and
-returns a new opaque token once with `expires_at`. Only the token digest is stored. Login failures
-never reveal which field differed and never log credentials. Sessions expire after
-`ASK_SUNNY_ADMIN_SESSION_TTL_SECONDS`; creating a session deletes expired sessions for that user.
+For admin keys, read routes require `admin:read` and mutations require `admin:write`. Website keys
+use `operations:read` for both read and mutation routes; authorization still validates the stored
+key type and server-owned fixed scope.
 
-The session token format is `ask_admin_session_<43 base64url characters>`. Admin API-key creation
-and rotation remain an operator-controlled secret-management operation outside the public HTTP API.
-
-Read routes require `admin:read`; reindex creation requires `admin:write`.
-
-WordPress installation operations are a separate boundary. Active `wordpress_installation` keys
-receive `operations:read`; this scope authorizes only `GET /installation/diagnostics` and
-`GET /installation/usage`. The migration adds the scope idempotently to existing active installation
-credential metadata without rotating credentials. It does not authorize any `/admin/*` route.
+Active `website` keys receive `operations:read`; this scope authorizes the website diagnostics
+projection, AI configuration, safe option inspection, and reindex coordination. Diagnostics remain
+projected by key type, so website keys do not receive admin-only deployment details.
 
 ## 3. Diagnostics
 
-`GET /admin/diagnostics` returns safe current operational state:
+`GET /system/diagnostics` with an `admin:read` key returns safe current operational state:
 
 - deployment mode and service version;
 - database, Redis, and pool total/idle/waiting state;
@@ -56,34 +51,9 @@ credential metadata without rotating credentials. It does not authorize any `/ad
 Diagnostics are read-only and bounded. Dependency probe failures return the same schema with safe
 `error`/`unavailable` states and do not expose SQL or exception text.
 
-## 4. Usage
+## 4. Website Diagnostics Projection
 
-`GET /admin/usage` requires RFC3339 `from` and `to`, with `from < to`, a maximum inclusive range of
-92 days, and optional `event_type` from the stored server event taxonomy. Unknown parameters or
-event types return `400 validation_error`.
-
-The response contains `from`, `to`, optional filter, totals, and UTC daily buckets. Totals include:
-
-- chat turns, indexing/mutation events, and retrieval events;
-- successes, errors, average and p95 latency;
-- input/output tokens and retrieval result count;
-- vector, BM25, and fused candidate counts;
-- vector-only fallback count and error counts by stable `error_code`.
-
-Daily buckets contain only date, event counts, errors, average latency, tokens, retrieval count, and
-fallback count. Aggregation reads the existing safe `usage_events` columns/metadata. It never
-selects or returns conversation message content, tool arguments/results, visitor identities,
-source/result identities, query/filter text, raw metadata, provider name/model, or provider state.
-Provider identity remains runtime diagnostic/ephemeral metric context and is not added to usage rows.
-
-The installation usage route applies the same validation and aggregation but returns only the safe
-projection for the authenticated WordPress installation. It never returns identities, messages,
-queries, filters, source/result identities, raw metadata, provider bodies, or administrative session
-state.
-
-## 4.1 Installation Diagnostics Projection
-
-`GET /installation/diagnostics` reuses the operational probes but explicitly projects only service
+`GET /system/diagnostics` with a website key reuses the operational probes but explicitly projects only service
 version and dependency status; selected AI and embedding configuration; ParadeDB, vector, BM25, and
 requested/effective hybrid state; retrieval-configuration version/update time; content counts; and
 the latest safe indexing time/outcome. It excludes credentials, URLs, pool internals, package paths,
@@ -101,8 +71,9 @@ Keys must be a non-empty subset of currently stored data-source descriptors and 
 a retained source. The route inserts one record and returns `202` with `ok`, `job_id`,
 `status=awaiting_wordpress`, requested keys, and `created_at`.
 
-`GET /admin/reindex/:job_id` requires `admin:read` and returns that same bounded record or a generic
-`404 reindex_job_not_found`. `GET /admin/diagnostics` exposes the latest record. No backend worker
+`GET /admin/reindex/:job_id` requires `admin:read` for admin keys or `operations:read` for website
+keys and returns that same bounded record or a generic
+`404 reindex_job_not_found`. The admin projection of `GET /system/diagnostics` exposes the latest record. No backend worker
 claims to rebuild WordPress content. The administrator/plugin uses the record as coordination,
 causes WordPress to re-send eligible source-of-truth payloads through normal idempotent content
 routes, and verifies indexing/usage state. Completion mutation is deferred until a WordPress-owned
@@ -110,7 +81,7 @@ reporting contract exists; launch status therefore remains honestly `awaiting_wo
 
 ## 6. Metrics And Correlation
 
-The runtime exposes safe metrics through diagnostics/usage and structured logs:
+The runtime exposes safe metrics through diagnostics and structured logs:
 
 - request correlation, route, status, latency, and stable error code;
 - job ID/correlation and requested source count;

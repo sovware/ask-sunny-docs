@@ -21,8 +21,8 @@ The server is responsible for:
 - Language: JavaScript, following the backend service's Bun/Hono runtime pattern.
 - HTTP framework: Hono.
 - Agent framework: LangGraph.js.
-- Model API: provider-neutral generation interface with adapters registered by name and selected at runtime from `AI_PROVIDER`.
-- Embeddings: independently configured embedding provider; OpenAI is the launch default.
+- Model API: router-neutral generation interface selected by database-backed chat router/model options.
+- Embeddings: independently selected OpenAI or Gemini router/model options with fixed dimensions.
 - Database: ParadeDB's PostgreSQL distribution with `pg_search` and pgvector.
 - Search: hybrid BM25 keyword matching plus dense vector similarity.
 - Cache: Redis optional.
@@ -38,27 +38,14 @@ LOG_LEVEL=info
 REQUEST_BODY_LIMIT=2mb
 
 ASK_SUNNY_INSTALLATION_PROVISIONING_KEY=replace-with-long-random-secret
-ASK_SUNNY_ADMIN_EMAIL=admin@example.com
+ASK_SUNNY_ADMIN_USERNAME=admin
 ASK_SUNNY_ADMIN_PASSWORD=replace-with-strong-password
-ASK_SUNNY_ADMIN_SESSION_TTL_SECONDS=86400
 
 DATABASE_URL=postgres://ask_sunny:strong-password@127.0.0.1:5432/ask_sunny
 PG_POOL_MAX=10
 
-AI_PROVIDER=openai
 AI_REQUEST_TIMEOUT_MS=45000
 
-OPENAI_API_KEY=replace-with-openai-api-key
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_CHAT_MODEL=replace-with-supported-openai-model
-
-GROQ_API_KEY=replace-with-groq-api-key
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-GROQ_CHAT_MODEL=replace-with-supported-groq-model
-
-EMBEDDING_PROVIDER=openai
-OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
 EMBEDDING_REQUEST_TIMEOUT_MS=15000
 EMBEDDING_MAX_RETRIES=2
@@ -92,7 +79,20 @@ MAX_TOOL_ITERATIONS=6
 DEFAULT_TIMEZONE=UTC
 ```
 
-`AI_PROVIDER` is the only switch for chat generation. A provider registry resolves that value to an adapter implementing the provider-neutral generation interface; orchestration, persistence, routes, and domain services must not branch on provider names. The selected adapter's API key, base URL, and model must be valid at startup; credentials for an inactive provider may be omitted. Embeddings are configured independently because generation and embedding providers do not have identical capabilities. Changing `AI_PROVIDER` does not change stored vector dimensions or trigger re-embedding, and provider identity is not stored in application database tables.
+The global `options` key/value rows store the selected generation provider, encrypted API key, and chat
+model globally. A provider registry resolves that database record to an adapter implementing the
+provider-neutral generation interface; orchestration, routes, and domain services must not branch
+on provider names. Missing or incomplete stored provider configuration
+fails the related request before work begins and never falls back to process environment settings.
+Non-secret provider base URLs and the shared request timeout remain deployment controls. Embeddings
+remain independently configured because generation and embedding providers do not have identical
+capabilities.
+
+The option repository is the single persistence boundary for the `options` table. It exposes only
+generic insert, get, update, delete, `getByKeys`, and `updateMany` operations. Provider key names,
+mapping, validation, and summary projection remain in the application layer; the repository has no
+provider-specific helpers. `updateMany` accepts only option items and always assigns row
+`updated_at` values from the database clock.
 
 Embedding requests use independent timeout and retry controls. `EMBEDDING_REQUEST_TIMEOUT_MS`
 defaults to 15000 and accepts 1000 through 60000. `EMBEDDING_MAX_RETRIES` defaults to 2 and accepts
@@ -102,7 +102,7 @@ milliseconds, and may be raised by a valid `Retry-After` value up to that same c
 
 Because chat is returned as one complete response, the WordPress proxy timeout must be greater than `AI_REQUEST_TIMEOUT_MS`; a 60-second WordPress timeout provides application overhead around the 45-second provider timeout.
 
-Model names are deployment configuration, not hardcoded constants. Verify the selected provider's current model, Responses API, structured-output, and tool-use support before production launch. The provider adapter must not send parameters unsupported by the active provider.
+Model names are global database configuration, not hardcoded constants. Verify the selected provider's current model, Responses API, structured-output, and tool-use support before production launch. The provider adapter must not send parameters unsupported by the active provider.
 
 The example connection URLs target native services. Docker Compose overrides their hosts with Compose service names such as `paradedb` and `redis`; application code and all other configuration remain identical.
 
@@ -181,7 +181,11 @@ Use the configured provider's Responses API for:
 - Complete structured response generation for the widget.
 - Multi-turn continuity through server-side conversation context.
 
-The launch adapter registry includes `openai` and `groq`. `AI_PROVIDER=openai` resolves the OpenAI adapter and `AI_PROVIDER=groq` resolves the Groq adapter. Adding a future provider requires registering another implementation, not editing orchestration or persistence code. Each adapter owns request construction, supported parameters, structured-output validation, tool-call normalization, usage normalization, timeout handling, and error mapping.
+The launch adapter registry includes `openai` and `groq`; the global `options` key/value store
+provider type resolves the matching adapter. Adding a future provider requires registering another
+implementation, not editing orchestration or conversation persistence code. Each adapter owns
+request construction, supported parameters, structured-output validation, tool-call normalization,
+usage normalization, timeout handling, and error mapping.
 
 Do not depend on provider-hosted conversation state. The application loads and persists provider-neutral conversation history and LangGraph state, then supplies the required context on every turn. Database tables do not store the active provider or provider-specific conversation IDs. This keeps provider switching deterministic and avoids coupling to provider-specific response-storage features.
 

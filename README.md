@@ -43,7 +43,7 @@ Launch requirements:
 - Return each chat turn as one complete JSON response; do not stream partial output.
 - Preserve conversation context across follow-up questions.
 - Let administrators choose the pages where the chat widget appears and configure its color scheme, screen position, and welcome message.
-- Select OpenAI or Groq for chat generation through one server environment variable while keeping all provider credentials and model settings in environment variables.
+- Select OpenAI or Groq for chat generation through encrypted installation configuration stored by the backend.
 - Support both native and optional Docker server deployment, with ParadeDB BM25 + pgvector as the normal production retrieval mode only after its package and readiness gates pass.
 - Provide an admin Test Chat submenu for exercising the widget UI and backend API integration.
 - Power the website first while keeping the backend reusable for a future mobile app.
@@ -73,7 +73,7 @@ Future-facing requirements:
 - [`server/RANKING_AND_CITATION_CONTRACT.md`](server/RANKING_AND_CITATION_CONTRACT.md): versioned relevance-first ranking, review aggregation, promotion disclosures, citations, uncertainty, deduplication, and evaluation gates.
 - [`server/CONVERSATION_CONTEXT_CONTRACT.md`](server/CONVERSATION_CONTEXT_CONTRACT.md): exact visitor ownership, bounded history, turn audit records, PostgreSQL checkpoints, history access, deletion, anonymization, and retention.
 - [`server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md`](server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md): Ask Sunny indexing, retrieval, chat, caching, security, and semantic-search flows.
-- [`server/DATABASE_SCHEMA.md`](server/DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, admin sessions, and migrations.
+- [`server/DATABASE_SCHEMA.md`](server/DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, API keys, and migrations.
 - [`server/REST_API_CONTRACT.md`](server/REST_API_CONTRACT.md): backend REST endpoints called by WordPress, future mobile clients, and server admins.
 
 ### Plugin
@@ -112,7 +112,7 @@ WordPress remains responsible for collecting site content, configuring and rende
 - Ask Sunny is single-tenant. Do not use a multi-tenant `sites` and `site_domains` model as the main architecture.
 - Browser JavaScript calls WordPress REST only. Browser code never receives AI-provider, embedding-provider, or backend API keys.
 - The backend uses LangGraph for orchestration and short-term workflow state. Application tables store durable conversation, message, tool-call, profile, and usage records.
-- The backend uses a provider-neutral abstraction for Responses API calls. `AI_PROVIDER=openai|groq` selects a registered adapter at runtime; provider keys, base URLs, models, and embedding settings remain environment configuration, while database tables store no provider discriminator or provider-specific conversation state. Chat responses are not streamed.
+- The backend uses a provider-neutral abstraction for Responses API calls. One singleton global database record selects a registered adapter and supplies its encrypted API key and chat model for every installation; non-secret endpoints, timeouts, and independent embedding settings remain environment configuration. Conversation tables store no provider-specific response or conversation state. Chat responses are not streamed.
 - Native or Dockerized ParadeDB uses `pg_search` for BM25 and pgvector for dense similarity. Hybrid retrieval is the verified production default and fuses both candidate sets only after applying the stored data-source allowlist and structured filters. Installation and upgrades begin with hybrid disabled; it must not be enabled until the installed package/image matches the running PostgreSQL major version, execution OS, and architecture and all extension, index, and smoke checks pass.
 - WordPress and Directorist remain the content source of truth for launch. Backend content tables are an indexed search/read model.
 - Backend content storage is separated by source kind. Directorist listings use a dedicated `listings` table with inline normalized state and vector data; reviews and optional WordPress content use their own content and embedding tables.
