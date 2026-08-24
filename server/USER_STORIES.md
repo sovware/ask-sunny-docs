@@ -506,7 +506,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 7. **Given** independently configured embeddings, **when** global generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
 8. **Given** legacy authentication, site-identity, and installation-configuration data, **when** the global-configuration cutover migrations run, **then** credentials are cleared, the retrieval allowlist moves into the application configuration store, and the unused `installation_config` and `installation_domains` tables are removed.
 9. **Given** the application configuration table, **when** settings are persisted, **then** it is named `options`, has no synthetic ID, and stores each setting as a distinct `key` and JSON `value` row.
-10. **Given** application code needs to manage settings, **when** it accesses persistence, **then** the option repository exposes only generic `insert`, `get`, `update`, `delete`, `getByKeys`, and `updateMany` operations and contains no provider-specific helpers.
+10. **Given** application code needs to manage settings, **when** it accesses persistence, **then** the option repository exposes only generic `insert`, `get`, `update`, `delete`, `getByKeys`, and `updateMany` operations, contains no provider-specific helpers, and `updateMany` accepts only the option items.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

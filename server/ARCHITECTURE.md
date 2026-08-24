@@ -100,7 +100,8 @@ capabilities.
 The option repository is the single persistence boundary for the `options` table. It exposes only
 generic insert, get, update, delete, `getByKeys`, and `updateMany` operations. Provider key names,
 mapping, validation, and summary projection remain in the application layer; the repository has no
-provider-specific helpers.
+provider-specific helpers. `updateMany` accepts only option items and always assigns row
+`updated_at` values from the database clock.
 
 Embedding requests use independent timeout and retry controls. `EMBEDDING_REQUEST_TIMEOUT_MS`
 defaults to 15000 and accepts 1000 through 60000. `EMBEDDING_MAX_RETRIES` defaults to 2 and accepts

@@ -51,6 +51,9 @@ chat request and must never be copied into `api_keys.metadata`. The `ai_api_key`
 AES-256-GCM ciphertext protected by the server provider-secret encryption key; only the masked
 value may be returned by APIs.
 
+Single and bulk option writes assign the row `updated_at` value with the database clock. Callers do
+not provide this persistence timestamp.
+
 The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
 `admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
 the configuration store. This deliberately invalidates every previously issued installation/admin
