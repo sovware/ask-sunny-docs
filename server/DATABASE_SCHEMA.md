@@ -43,14 +43,13 @@ ON api_keys (owner_id)
 WHERE key_type = 'website' AND status = 'active';
 ```
 
-`options` is a global key/value store with no synthetic identifier. Each setting occupies one
-row. The required keys are `ai_provider`, `ai_chat_model`, `ai_api_key`,
-`ai_api_key_masked`, `ai_provider_updated_at`, `allowed_data_source_keys`,
-`allowed_data_sources_version`, and, after the first allowlist update,
-`allowed_data_sources_updated_at`. Provider configuration applies to every installation key and
-chat request and must never be copied into `api_keys.metadata`. The `ai_api_key` value is
-AES-256-GCM ciphertext protected by the server provider-secret encryption key; only the masked
-value may be returned by APIs.
+`options` is a global key/value store with no synthetic identifier. Each setting occupies one row.
+AI credential keys are `openai_api_key`, `groq_api_key`, and `gemini_api_key`; each present value is
+AES-256-GCM ciphertext protected by the server encryption key. Service selections use
+`chat_ai_router`, `chat_ai_model`, `embedding_ai_router`, and `embedding_ai_model`. Retrieval uses
+`allowed_data_source_keys`, `allowed_data_sources_version`, and, after the first allowlist update,
+`allowed_data_sources_updated_at`. AI configuration applies to every installation and must never be
+copied into `api_keys.metadata`. Credential option values and masked fragments are never returned.
 
 Single and bulk option writes assign the row `updated_at` value with the database clock. Callers do
 not provide this persistence timestamp.

@@ -50,8 +50,8 @@ This guide defines the semantic indexing, retrieval, chat, and failure flows. De
 - API: Hono.
 - Orchestration: LangGraph.js.
 - Database: PostgreSQL with ParadeDB `pg_search`, pgvector, and `pgcrypto`.
-- Chat generation: provider-neutral adapter selected by the global `options` key/value settings.
-- Embeddings: independently selected with `EMBEDDING_PROVIDER` and embedding environment settings.
+- Chat generation: router-neutral adapter selected by `chat_ai_router` and `chat_ai_model` options.
+- Embeddings: independently selected by `embedding_ai_router` and `embedding_ai_model` options.
 - Deployment: native services or optional Docker Compose.
 - Response transport: one complete JSON response; no partial token streaming.
 
@@ -62,13 +62,6 @@ DATABASE_URL=postgres://ask_sunny:strong-password@127.0.0.1:5432/ask_sunny
 PG_POOL_MAX=10
 
 AI_REQUEST_TIMEOUT_MS=45000
-OPENAI_BASE_URL=https://api.openai.com/v1
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-
-EMBEDDING_PROVIDER=openai
-EMBEDDING_API_KEY=replace-with-embedding-api-key
-OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
 
 HYBRID_SEARCH_ENABLED=false

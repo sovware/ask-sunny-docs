@@ -21,8 +21,8 @@ The server is responsible for:
 - Language: JavaScript, following the backend service's Bun/Hono runtime pattern.
 - HTTP framework: Hono.
 - Agent framework: LangGraph.js.
-- Model API: provider-neutral generation interface selected from singleton global database configuration.
-- Embeddings: independently configured embedding provider; OpenAI is the launch default.
+- Model API: router-neutral generation interface selected by database-backed chat router/model options.
+- Embeddings: independently selected OpenAI or Gemini router/model options with fixed dimensions.
 - Database: ParadeDB's PostgreSQL distribution with `pg_search` and pgvector.
 - Search: hybrid BM25 keyword matching plus dense vector similarity.
 - Cache: Redis optional.
@@ -46,14 +46,6 @@ PG_POOL_MAX=10
 
 AI_REQUEST_TIMEOUT_MS=45000
 
-OPENAI_BASE_URL=https://api.openai.com/v1
-
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-
-EMBEDDING_PROVIDER=openai
-EMBEDDING_API_KEY=replace-with-embedding-api-key
-OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
 EMBEDDING_REQUEST_TIMEOUT_MS=15000
 EMBEDDING_MAX_RETRIES=2

@@ -79,15 +79,6 @@ Keep all server configuration in `.env`, the native service-manager environment,
 
 ```dotenv
 AI_REQUEST_TIMEOUT_MS=45000
-
-OPENAI_BASE_URL=https://api.openai.com/v1
-
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-
-EMBEDDING_PROVIDER=openai
-EMBEDDING_API_KEY=
-OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
-EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
 
 HYBRID_SEARCH_ENABLED=false
@@ -115,12 +106,13 @@ CONVERSATION_RETENTION_DAYS=90
 CONVERSATION_DELETED_GRACE_DAYS=30
 ```
 
-The runtime provider registry resolves the singleton global `app_config` provider type, encrypted
-key, and chat model without changing orchestration or conversation persistence code.
-Missing or invalid stored generation configuration fails the related request before processing.
-Only non-secret adapter endpoints and the shared timeout remain in environment configuration.
-Embeddings remain independently configured so changing the chat provider never silently changes
-vector dimensions or forces a reindex.
+The runtime router registries resolve connected OpenAI, Groq, and Gemini credentials plus the
+independent chat and embedding router/model selections from `options` on each related request.
+Missing or invalid stored configuration fails before related processing. Provider endpoints,
+provider/model names, and API keys are not environment authority; only generic operational
+timeouts, retries, fixed embedding dimensions, and the credential-encryption master key remain.
+Changing embedding selection keeps dimensions at 1536, excludes mismatched stored vectors, and
+requires WordPress content resend when `reindex_required` is reported.
 
 `HYBRID_SEARCH_ENABLED=false` is the required safe value during installation and upgrade. Hybrid is the expected production mode only after the compatibility, extension, migration, index, direct-query, and application gates below pass; then set it to `true` deliberately.
 
@@ -382,7 +374,7 @@ secret-free final report follow
 - ParadeDB, `pg_search`, and pgvector are installed and compatible; any missing or mismatched evidence keeps hybrid disabled.
 - Required migrations, BM25 indexes, `ANALYZE`, direct BM25 smoke queries, and application checks pass before hybrid search is enabled.
 - Backend `/health` and WordPress diagnostics pass.
-- The singleton global app configuration selects a configured, verified OpenAI or Groq adapter.
+- Connected router credentials and independent chat/embedding selections exist in `options`.
 - Initial reindex completes.
 - Every Directorist directory type has a required listing source, and reviews are controlled by one global optional Listing Reviews setting.
 - Global reviews and optional WordPress sources honor enabled state and filters.
@@ -393,7 +385,7 @@ secret-free final report follow
 - Per-item indexing status and failures are visible in WordPress admin.
 - Chat works for anonymous and logged-in visitors and returns one complete response with citations and recommendations.
 - Widget page targeting, color scheme, position, and welcome message match the saved configuration.
-- OpenAI, Groq, embedding-provider, and backend installation keys are absent from browser source.
+- OpenAI, Groq, Gemini, and backend installation keys are absent from browser source.
 - Featured recommendations and configured promotion disclosures are labeled.
 - Backup and restore rehearsals pass.
 - Error logs and alerts are monitored.

@@ -397,9 +397,9 @@ route or stores a backend administrator credential. The backend exposes no websi
   "backend": {
     "ok": true,
     "database": "ok",
-    "ai_provider": "groq",
-    "ai_provider_configured": true,
-    "embedding_provider": "openai",
+    "chat_ai_router": "groq",
+    "chat_ai_configured": true,
+    "embedding_ai_router": "openai",
     "hybrid_search": "enabled",
     "paradedb": "ok",
     "allowed_data_sources_version": 6,

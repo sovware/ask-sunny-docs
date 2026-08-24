@@ -41,7 +41,10 @@ Returns server health.
     "status": "enabled",
     "reason": null
   },
-  "ai_provider": "openai",
+  "chat_ai_router": "openai",
+  "chat_ai_model": "gpt-5.4-mini",
+  "embedding_ai_router": "openai",
+  "embedding_ai_model": "text-embedding-3-small",
   "redis": "disabled"
 }
 ```
@@ -117,14 +120,27 @@ Validates a strict `username` and `password` request against `ASK_SUNNY_ADMIN_US
 website provisioning; only its prefix and SHA-256 digest are stored. Invalid credentials return the
 generic `401 authentication_error`. No admin user or session record is created.
 
-### `POST /system/provider`
+### AI configuration routes
 
-Requires an active `website` key with `operations:read` or an active `admin` key with
-`admin:write`. It accepts `ai_provider_type`,
-`ai_model_name`, and `ai_provider_api_key`. The backend validates the provider/model/key combination,
-encrypts the API key, atomically replaces the related global `options` key/value rows, and returns
-only the public provider shape. The configuration applies to every installation. Invalid credentials
-return stable `401` or `503` errors without changing the global configuration or exposing the key.
+All AI configuration routes use the `/system/ai-config` prefix and accept only admin API keys.
+Reads require `admin:read`; mutations require `admin:write`.
+
+- `GET /system/ai-config/routers` returns the hardcoded OpenAI, Groq, and Gemini router catalog with
+  compatible text and embedding model IDs.
+- `POST /system/ai-config/routers` accepts exactly `router_type` and `api_key`, validates the key
+  against the selected router before encrypting and atomically inserting or rotating it, and never
+  returns key material.
+- `DELETE /system/ai-config/routers/{router_type}` idempotently removes that credential and
+  atomically clears every chat or embedding selection that references it. It never selects a
+  fallback router.
+- `PUT /system/ai-config/chat` accepts exactly `router_type` and `model`, requires a connected
+  router and catalogued text model, and atomically replaces `chat_ai_router` and `chat_ai_model`.
+- `PUT /system/ai-config/embedding` applies the equivalent embedding selection and reports
+  `reindex_required=true` when indexed content exists and the selection changed.
+
+`GET /system/options` requires `admin:read` and returns explicitly classified safe option rows plus
+per-router configured booleans. Encrypted credentials, plaintext, masked fragments, and unknown
+option keys are never returned. The retired `POST /system/provider` route is absent.
 
 ### `POST /auth/disconnect`
 
@@ -513,10 +529,10 @@ The chat caller does not provide `allowed_data_source_keys`. The backend loads i
 
 `channel` accepts `web`, `mobile`, or `admin_test`. WordPress sends `web` for the public widget and `admin_test` only from its capability-protected Test Chat route. Channel is product context, not an AI-provider selector.
 
-The chat caller cannot override the AI provider or model. The server uses the authenticated
-installation's encrypted database-backed provider configuration for the entire turn. Missing or
-incomplete provider configuration returns `503 ai_provider_not_configured` before a conversation
-turn, retrieval, tool, or upstream provider call is created.
+The chat caller cannot override the AI router or model. The server resolves the application-wide
+database-backed chat selection and connected router credential for the entire turn. Missing or
+incomplete configuration returns `503 chat_ai_not_configured` before a conversation turn,
+retrieval, tool, or upstream router call is created.
 
 SV-US-008 adds no public retrieval endpoint. `search_content` and `get_content_detail` are
 server-owned application/tool boundaries used by the later chat workflow. Their validated filter

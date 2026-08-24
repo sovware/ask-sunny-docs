@@ -59,17 +59,16 @@ no unsupported factual claim, and returns empty grounded arrays.
 
 ## 4. Provider-Neutral Generation Boundary
 
-The provider registry resolves the global `options` AI provider key/value rows from the database for
-every turn. Only `openai` and `groq` are registered. The globally stored provider type, encrypted API
-key, and chat model are authoritative; generation provider selection and credentials are never
-installation-specific and must not come from process environment variables. Orchestration, tools,
-HTTP routes, and conversation persistence receive the selected adapter through the common boundary
-and never branch on its name.
+The router registry resolves `chat_ai_router`, `chat_ai_model`, and that router's encrypted
+credential from `options` for every turn. `openai`, `groq`, and `gemini` are registered. Selection
+and credentials are application-wide, never installation-specific, and never come from provider,
+model, or key environment variables. Orchestration, tools, HTTP routes, and conversation
+persistence receive the selected adapter through the common boundary and never branch on its name.
 
 Provider resolution occurs after request/authentication validation but before a conversation turn,
 retrieval, tool, or upstream provider call is created. Missing, incomplete, or undecryptable stored
-provider configuration returns `503 ai_provider_not_configured` without falling back to a local or
-environment adapter.
+chat configuration returns `503 chat_ai_not_configured` without falling back to another router, a
+local adapter, or environment configuration.
 
 The internal request contains only:
 

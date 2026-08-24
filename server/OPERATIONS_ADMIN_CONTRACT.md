@@ -26,8 +26,8 @@ which field differed and never log credentials. There are no admin-user or admin
 Read routes require `admin:read`; reindex creation requires `admin:write`.
 
 WordPress installation operations are a separate boundary. Active `website` keys receive
-`operations:read`; this scope authorizes the website projection from `GET /system/diagnostics` and
-provider configuration through `POST /system/provider`. It does not authorize any `/admin/*` route.
+`operations:read`; this scope authorizes only the website projection from `GET /system/diagnostics`.
+AI configuration and safe option reads require admin scopes and do not authorize website keys.
 
 ## 3. Diagnostics
 

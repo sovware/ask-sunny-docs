@@ -492,23 +492,28 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **User story**
 
-> As a **server operator**, I want one global AI configuration and explicit provisioning identities, so that every client uses the same provider while duplicate active identities cannot silently rotate credentials.
+> As a **server operator**, I want multiple connected AI routers with independent chat and embedding selections, so that each service can use an explicitly configured router/model while credentials remain global, encrypted, and revocable.
 
 **Acceptance criteria**
 
-1. **Given** a configured OpenAI or Groq provider, **when** health, diagnostics, or chat resolves it, **then** every client uses the encrypted values in the global `options` key/value store rather than installation metadata or process environment configuration.
+1. **Given** configured OpenAI, Groq, or Gemini routers, **when** chat or embedding work resolves its selection, **then** it uses the encrypted router credential and service-specific router/model values in `options`, never installation metadata or provider/model/key environment configuration.
 2. **Given** a valid provisioning secret and a trimmed `provisioning_id` of at least five characters, **when** provisioning succeeds, **then** a new `website` key is returned, its identity is stored in `api_keys.owner_id`, and only its hash and fixed scopes are otherwise persisted.
 3. **Given** an active key for a `provisioning_id`, **when** the same identity is provisioned again, **then** the server returns `409 provisioning_id_already_provisioned`, creates no credential, and does not revoke or rotate the existing key.
 4. **Given** the active key disconnects, **when** the same `provisioning_id` is provisioned later, **then** a new key may be created while the disconnected key remains revoked.
-5. **Given** missing, incomplete, or undecryptable global provider configuration, **when** chat is requested, **then** it returns `503 ai_provider_not_configured` before creating a turn or invoking retrieval, tools, or a provider.
+5. **Given** missing, incomplete, disconnected, or undecryptable chat or embedding configuration, **when** the related service is requested, **then** it returns `503 chat_ai_not_configured` or `503 embedding_ai_not_configured` before conversation, retrieval, indexing, mutation, tool, or router work begins.
 6. **Given** an existing database with installation-scoped provider metadata, **when** the forward migration runs, **then** the latest valid provider is copied to global app configuration before provider metadata is removed from every installation key.
-7. **Given** independently configured embeddings, **when** global generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
+7. **Given** independently configured chat and embedding selections, **when** one selection changes, **then** the other remains unchanged; embedding dimensions remain fixed at 1536 and a changed embedding selection reports whether reindexing is required.
 8. **Given** legacy authentication, site-identity, and installation-configuration data, **when** the global-configuration cutover migrations run, **then** credentials are cleared, the retrieval allowlist moves into the application configuration store, and the unused `installation_config` and `installation_domains` tables are removed.
 9. **Given** the application configuration table, **when** settings are persisted, **then** it is named `options`, has no synthetic ID, and stores each setting as a distinct `key` and JSON `value` row.
 10. **Given** application code needs to manage settings, **when** it accesses persistence, **then** the option repository exposes only generic `insert`, `get`, `update`, `delete`, `getByKeys`, and `updateMany` operations, contains no provider-specific helpers, and `updateMany` accepts only the option items.
 11. **Given** valid configured admin username and password values, **when** `POST /auth/admin` succeeds, **then** it returns a one-time plaintext `admin` API key with fixed admin scopes and persists no admin user or session row.
-12. **Given** the revised route contract, **when** clients provision, disconnect, inspect diagnostics, or update the provider, **then** they use `/auth/provision`, `/auth/disconnect`, `/system/diagnostics`, and `/system/provider`, and every former usage route is absent.
+12. **Given** the revised route contract, **when** clients provision, disconnect, inspect diagnostics, or manage AI configuration, **then** they use `/auth/provision`, `/auth/disconnect`, `/system/diagnostics`, and the `/system/ai-config/*` routes, while `/system/provider` and every former usage route are absent.
 13. **Given** any active website or admin API key, **when** it calls `POST /auth/disconnect`, **then** only that presented key is revoked.
+14. **Given** an admin read key, **when** supported routers are requested, **then** the API returns the hardcoded stable compatible router/model catalog without consulting a provider or database.
+15. **Given** an admin write key and a supported router credential, **when** the router is connected or rotated, **then** the key is validated upstream before its encrypted value is atomically stored; invalid or unavailable validation performs no write.
+16. **Given** a connected router and supported model, **when** chat or embedding selection is updated, **then** only the corresponding service selection is replaced and becomes effective without restarting the API.
+17. **Given** a connected router used by either service, **when** that router is disconnected, **then** its credential and every dependent router/model selection are deleted atomically without selecting a fallback router.
+18. **Given** an admin read key, **when** system options are requested, **then** only explicitly classified safe rows and per-router configured booleans are returned; plaintext, ciphertext, masked fragments, and unknown option keys are absent.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have
