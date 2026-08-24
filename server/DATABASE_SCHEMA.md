@@ -85,6 +85,11 @@ encrypted API key apply to every installation key and chat request. Provider con
 never be copied into `api_keys.metadata`. The API key is AES-256-GCM ciphertext protected by the
 server provider-secret encryption key; only its masked suffix may be returned by APIs.
 
+The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
+`admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
+`app_config`. This deliberately invalidates every previously issued installation/admin credential
+and removes obsolete site identity data. It must preserve `app_config` and `installation_config`.
+
 Allowlist replacement uses one conditional statement that matches
 `allowed_data_sources_version = expected_version`, writes the complete canonical array, increments
 the version by exactly one, and sets `allowed_data_sources_updated_at` from the database clock. A

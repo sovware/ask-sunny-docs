@@ -504,6 +504,7 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 5. **Given** missing, incomplete, or undecryptable global provider configuration, **when** chat is requested, **then** it returns `503 ai_provider_not_configured` before creating a turn or invoking retrieval, tools, or a provider.
 6. **Given** an existing database with installation-scoped provider metadata, **when** the forward migration runs, **then** the latest valid provider is copied to global app configuration before provider metadata is removed from every installation key.
 7. **Given** independently configured embeddings, **when** global generation configuration changes, **then** embedding provider/model/dimension behavior remains unchanged and its credential uses the generic `EMBEDDING_API_KEY` setting.
+8. **Given** legacy authentication and site-identity data, **when** the global-configuration cutover migration runs, **then** installation keys, admin sessions/users, and installation-domain rows are cleared while global AI and retrieval configuration remain intact.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

@@ -351,6 +351,10 @@ Recovery sequence:
 
 ### Emergency Installation Credential Replacement
 
+The global-configuration cutover invalidates all existing installation and admin credentials. After
+that migration, provision each required installation identity again and create a new admin session;
+the AI configuration in `app_config` and retrieval settings in `installation_config` are preserved.
+
 1. Verify the stored `provisioning_id` from a trusted administrative session.
 2. Call `POST /installation/disconnect` with the existing key. That key is immediately revoked.
 3. Send one provisioning request with the same identity and capture the returned installation key without logging it.
