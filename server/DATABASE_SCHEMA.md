@@ -55,8 +55,8 @@ value may be returned by APIs.
 Single and bulk option writes assign the row `updated_at` value with the database clock. Callers do
 not provide this persistence timestamp.
 
-The global-configuration cutover clears all existing rows from `api_keys`, `admin_sessions`,
-`admin_users`, and the legacy `installation_domains` registry after the provider has been copied to
+The global-configuration cutover clears all existing rows from `api_keys`, the former admin
+authentication tables, and the legacy `installation_domains` registry after the provider has been copied to
 the configuration store. This deliberately invalidates every previously issued installation/admin
 credential. Follow-up cleanup migrations copy the retrieval allowlist into the configuration store, drop
 `installation_config`, and drop the unused `installation_domains` table.
@@ -516,29 +516,14 @@ CREATE INDEX usage_events_type_idx ON usage_events (event_type);
 -- allowlist version, safe limits, source-kind count, candidate counts, and branch latencies. Query
 -- text, filters, result identities/content, raw scores, vectors, SQL, and provider identity are forbidden.
 
-CREATE TABLE admin_users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  display_name TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE admin_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-  session_hash TEXT NOT NULL UNIQUE,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE schema_migrations (
   version TEXT PRIMARY KEY,
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+Admin authentication uses `api_keys.key_type=admin`. The admin username is stored as `owner_id`,
+fixed admin scopes are stored in metadata, and no separate admin-user or session table exists.
 
 ## LangGraph Checkpoints
 

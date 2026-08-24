@@ -247,11 +247,11 @@ The Data Sources submenu should include:
 - Index-status counts update with search and tab-specific filters but are calculated before applying the selected index-status value, so the administrator can see how many records exist in every status without clearing the filter.
 - An explicit **Delete indexed data** action on each item and a destructive **Delete all indexed data** action for each source tab, both protected by confirmation and `manage_options`.
 - Diagnostics.
-- Recent usage summary fetched from backend.
+- Diagnostics summary fetched from backend.
 
-Backend diagnostics and usage use `GET /installation/diagnostics` and
-`GET /installation/usage` with the installation credential. The plugin must not call `/admin/*`,
-store an admin key/session, or expose the installation key to browser code.
+Backend diagnostics use `GET /system/diagnostics` with the website credential. The backend exposes
+no website usage route. The plugin must not call `/admin/*`, store an admin key, or expose the
+website key to browser code.
 
 The Test Chat submenu should render the production widget component in an isolated admin preview and send messages through an admin-only WordPress REST route. It displays connection/provider/hybrid-search diagnostics, request correlation ID, latency, answer, citations, recommendations, and sanitized errors. Test conversations use the backend `admin_test` channel and must not bypass the same response validation or source allowlist used by public chat.
 

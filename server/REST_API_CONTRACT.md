@@ -48,7 +48,7 @@ Returns server health.
 
 `hybrid_search.status` may report `disabled` or `degraded` when package compatibility is unproven, `pg_search`, a required BM25 index, or smoke verification is unavailable. Health must not report BM25 as enabled merely because the environment flag is set. A requested-but-ineffective hybrid configuration reports `requested: true`, `effective: false`, and a stable reason code.
 
-### `POST /auth/provision-installation`
+### `POST /auth/provision`
 
 Creates a WordPress installation API key for one unprovisioned identity. Uses the provisioning
 secret, not an existing installation key, and never rotates an active credential.
@@ -96,7 +96,7 @@ credential, change its status, or grant access to `/admin/*` routes.
 
 If an active key already owns the normalized provisioning identity, provisioning returns
 `409 provisioning_id_already_provisioned`, creates no key, and leaves the existing credential
-unchanged. The existing key must successfully call `POST /installation/disconnect` before that
+unchanged. The existing key must successfully call `POST /auth/disconnect` before that
 identity can be provisioned again. Disconnect never reveals or rotates a key. The plaintext key is
 returned only in its successful provisioning response and cannot be recovered.
 
@@ -109,19 +109,28 @@ same `401 authentication_error`. An authenticated key missing a route's required
 `403 forbidden` without naming the missing scope. Only a fully authorized request updates
 `last_used_at`.
 
-### `POST /installation/provider`
+### `POST /auth/admin`
 
-Requires any active installation key with `operations:read`. It accepts `ai_provider_type`,
+Validates a strict `username` and `password` request against `ASK_SUNNY_ADMIN_USERNAME` and
+`ASK_SUNNY_ADMIN_PASSWORD`, then creates a persistent `admin` API key with `admin:read` and
+`admin:write` scopes. The response returns the plaintext API key once, using the same key format as
+website provisioning; only its prefix and SHA-256 digest are stored. Invalid credentials return the
+generic `401 authentication_error`. No admin user or session record is created.
+
+### `POST /system/provider`
+
+Requires an active `website` key with `operations:read` or an active `admin` key with
+`admin:write`. It accepts `ai_provider_type`,
 `ai_model_name`, and `ai_provider_api_key`. The backend validates the provider/model/key combination,
 encrypts the API key, atomically replaces the related global `options` key/value rows, and returns
 only the public provider shape. The configuration applies to every installation. Invalid credentials
 return stable `401` or `503` errors without changing the global configuration or exposing the key.
 
-### `POST /installation/disconnect`
+### `POST /auth/disconnect`
 
-Requires an active installation key. It revokes only the presented key and records the generic
-disconnect reason. After disconnect succeeds, the key receives `401 authentication_error` on every
-protected route and its `provisioning_id` may be provisioned again.
+Requires any active `website` or `admin` API key. It revokes only the presented key and records the
+generic disconnect reason. After disconnect succeeds, the key receives `401 authentication_error`
+on every protected route. A disconnected website key's `provisioning_id` may be provisioned again.
 
 ## Retrieval Configuration Routes
 
@@ -210,8 +219,8 @@ Response:
 ```
 
 Before the first sync, the response contains an empty list, version `0`, and `updated_at: null`.
-This route is the narrow installation-facing diagnostic surface; it does not weaken the separate
-admin-authentication requirement for `GET /admin/diagnostics`.
+This route is the narrow retrieval-configuration surface; it does not weaken the separate admin-key
+requirement for the administrative projection of `GET /system/diagnostics`.
 
 The list uses concrete `data_source_key` classifications rather than broad `source_kind` values. For example, `directorist:events` and `directorist:events:reviews` can be allowed independently even though both are Directorist data.
 
@@ -598,18 +607,19 @@ Missing, mismatched, deleted, and malformed conversation IDs share:
 }
 ```
 
-## Installation Operations Routes
+## System Operations Routes
 
-These routes require an active WordPress installation credential with `operations:read`. They are
-safe, read-only projections for the WordPress plugin and do not accept an admin key/session in place
-of installation authentication. Installation credentials remain forbidden from every `/admin/*`
-route.
+System routes accept only active API keys. Website credentials use their bounded operational
+projection; admin credentials receive the administrative projection when their scopes authorize it.
+Website credentials remain forbidden from every `/admin/*` route.
 
-### `GET /installation/diagnostics`
+### `GET /system/diagnostics`
 
-Returns the bounded operational state needed by WordPress without credentials, URLs, visitor or
+Requires `operations:read` for a `website` key or `admin:read` for an `admin` key. Website requests
+return the bounded operational state needed by WordPress without credentials, URLs, visitor or
 conversation data, query/content text, raw errors, pool details, package-install coordinates, or
-other admin-only deployment data.
+other admin-only deployment data. Admin requests return the full safe administrative diagnostics
+projection documented below.
 
 ```json
 {
@@ -638,26 +648,10 @@ other admin-only deployment data.
 Dependency probe failures preserve this shape with safe `unavailable` or `degraded` values and a
 stable reason. The projection is read-only and bounded to the provisioned installation's data.
 
-### `GET /installation/usage`
-
-Uses the same `from`, `to`, and optional `event_type` validation as `GET /admin/usage`, including the
-92-day maximum range. It returns only the installation's totals and UTC daily buckets from the safe
-usage projection documented in the operations contract.
-
-```json
-{
-  "from": "2026-07-01T00:00:00Z",
-  "to": "2026-07-20T00:00:00Z",
-  "event_type": null,
-  "totals": {"events": 150, "successes": 147, "errors": 3, "average_latency_ms": 420, "p95_latency_ms": 900},
-  "daily": []
-}
-```
-
 ## Admin Routes
 
-Admin routes require an admin API key or admin session.
-Exact session, scope, diagnostics, usage, reindex tracking, privacy, and failure behavior is
+Admin routes require an admin API key.
+Exact scope, diagnostics, reindex tracking, privacy, and failure behavior is
 normative in [`OPERATIONS_ADMIN_CONTRACT.md`](OPERATIONS_ADMIN_CONTRACT.md).
 
 ### `POST /admin/reindex`
@@ -683,30 +677,7 @@ Response:
 }
 ```
 
-### `GET /admin/usage`
-
-Returns usage and latency metrics.
-
-Query parameters:
-
-- `from`
-- `to`
-- `event_type`
-
-Response:
-
-```json
-{
-  "totals": {
-    "chat_turns": 120,
-    "indexing_events": 30,
-    "errors": 2
-  },
-  "daily": []
-}
-```
-
-### `GET /admin/diagnostics`
+### Admin projection from `GET /system/diagnostics`
 
 Returns operational state.
 

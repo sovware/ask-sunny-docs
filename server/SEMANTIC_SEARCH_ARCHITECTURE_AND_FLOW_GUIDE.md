@@ -371,7 +371,7 @@ Primary semantic-search routes are:
 - `POST /content/delete`: tombstone one source record.
 - `POST /content/delete-by-data-source`: explicit administrative tombstone operation, not a disable-source action.
 - `POST /chat`: execute one complete grounded chat turn.
-- `GET /admin/diagnostics`: report search capability and indexing state.
+- `GET /system/diagnostics`: report search capability and indexing state.
 
 `POST /chat` never accepts an AI provider, model, or caller-supplied source allowlist. It accepts conversational context only; server environment and persisted installation configuration control generation and retrieval.
 

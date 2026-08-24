@@ -147,7 +147,7 @@ Environment safety rules:
 - Never print provider, embedding, provisioning, database, or installation secrets.
 - Use long random provisioning and installation keys.
 - Keep the generated backend installation key only in WordPress server-side options.
-- Set secure cookies for admin sessions behind HTTPS.
+- Store issued admin API keys only in an approved secret manager.
 
 ## Deployment Flow
 
@@ -352,11 +352,11 @@ Recovery sequence:
 ### Emergency Installation Credential Replacement
 
 The global-configuration cutover invalidates all existing installation and admin credentials. After
-that migration, provision each required installation identity again and create a new admin session.
+that migration, provision each required installation identity again and create a new admin API key.
 AI configuration and retrieval settings are both preserved in `app_config`.
 
-1. Verify the stored `provisioning_id` from a trusted administrative session.
-2. Call `POST /installation/disconnect` with the existing key. That key is immediately revoked.
+1. Verify the stored `provisioning_id` from a trusted administrative workflow.
+2. Call `POST /auth/disconnect` with the existing key. That key is immediately revoked.
 3. Send one provisioning request with the same identity and capture the returned installation key without logging it.
 4. Store the new key in the WordPress server-side option before making further backend calls.
 5. Run an authenticated diagnostic with the new key and confirm the old key receives the generic `401 authentication_error`.

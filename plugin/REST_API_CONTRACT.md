@@ -305,7 +305,7 @@ Explicitly deletes all indexed records for a source after admin confirmation. Th
 
 ### `POST /provision`
 
-Calls backend `/auth/provision-installation` using a server-side provisioning key.
+Calls backend `/auth/provision` using a server-side provisioning key.
 
 Response:
 
@@ -387,9 +387,8 @@ Returns local indexing status.
 ### `GET /diagnostics`
 
 Checks WordPress-side state and the backend's installation-scoped diagnostics. WordPress calls
-backend `GET /installation/diagnostics` with the installation credential; it never calls a backend
-`/admin/*` route or stores a backend administrator credential. Recent usage is fetched separately
-from backend `GET /installation/usage` and reduced to the same safe aggregates for the dashboard.
+backend `GET /system/diagnostics` with the website credential; it never calls a backend `/admin/*`
+route or stores a backend administrator credential. The backend exposes no website usage route.
 
 ```json
 {

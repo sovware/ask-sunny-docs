@@ -73,7 +73,7 @@ Future-facing requirements:
 - [`server/RANKING_AND_CITATION_CONTRACT.md`](server/RANKING_AND_CITATION_CONTRACT.md): versioned relevance-first ranking, review aggregation, promotion disclosures, citations, uncertainty, deduplication, and evaluation gates.
 - [`server/CONVERSATION_CONTEXT_CONTRACT.md`](server/CONVERSATION_CONTEXT_CONTRACT.md): exact visitor ownership, bounded history, turn audit records, PostgreSQL checkpoints, history access, deletion, anonymization, and retention.
 - [`server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md`](server/SEMANTIC_SEARCH_ARCHITECTURE_AND_FLOW_GUIDE.md): Ask Sunny indexing, retrieval, chat, caching, security, and semantic-search flows.
-- [`server/DATABASE_SCHEMA.md`](server/DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, admin sessions, and migrations.
+- [`server/DATABASE_SCHEMA.md`](server/DATABASE_SCHEMA.md): PostgreSQL schema for content, embeddings, conversations, user data, analytics, API keys, and migrations.
 - [`server/REST_API_CONTRACT.md`](server/REST_API_CONTRACT.md): backend REST endpoints called by WordPress, future mobile clients, and server admins.
 
 ### Plugin

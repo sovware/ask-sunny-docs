@@ -380,24 +380,23 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **User story**
 
-> As a **server operator**, I want diagnostics, usage reporting, and controlled reindex coordination, so that I can detect failures and support the WordPress integration.
+> As a **server operator**, I want diagnostics and controlled reindex coordination, so that I can detect failures and support the WordPress integration.
 
 **Acceptance criteria**
 
 1. **Given** an authorized diagnostics request, **when** it runs, **then** it reports native-service or Docker dependency health, ParadeDB extensions and BM25 indexes, hybrid mode, runtime generation/embedding configuration, allowlist version, source counts, and latest indexing state.
-2. **Given** an authorized usage query with a date range, **when** it runs, **then** it returns chat, indexing, latency, token, BM25/vector/fused retrieval, fallback, and error aggregates without exposing private message content or persisting provider identity.
-3. **Given** a reindex coordination request, **when** it is accepted, **then** it receives a tracked status while WordPress remains responsible for re-sending source-of-truth content.
-4. **Given** a wrong-scope installation key, **when** an admin-only endpoint is called, **then** access is denied.
-5. **Given** an operational failure, **when** thresholds are exceeded, **then** logs and metrics provide enough correlation to diagnose the affected request or job.
+2. **Given** a reindex coordination request, **when** it is accepted, **then** it receives a tracked status while WordPress remains responsible for re-sending source-of-truth content.
+3. **Given** a wrong-scope website key, **when** an admin-only endpoint is called, **then** access is denied.
+4. **Given** an operational failure, **when** thresholds are exceeded, **then** logs and metrics provide enough correlation to diagnose the affected request or job.
 
 **Tasks**
 
-- [ ] Implement `GET /admin/diagnostics` and `GET /admin/usage`.
+- [ ] Implement the admin projection of `GET /system/diagnostics`.
 - [ ] Implement `POST /admin/reindex` as a tracked coordination boundary.
-- [ ] Add admin key/session scope enforcement.
+- [ ] Add admin API-key scope enforcement.
 - [ ] Instrument chat, BM25/vector/fused retrieval, indexing, database-pool, selected-provider, embedding-provider, and error metrics.
 - [ ] Add health, latency, error-rate, rate-limit, and stale-index alert guidance.
-- [ ] Add diagnostics, usage, authorization, and privacy tests.
+- [ ] Add diagnostics, authorization, and privacy tests.
 
 **Dependencies:** SV-US-007, SV-US-011  
 **Priority:** Must have
@@ -447,20 +446,20 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 
 **User story**
 
-> As a **WordPress administrator**, I want installation-scoped diagnostics and usage telemetry, so that I can operate the integration without receiving a backend administrator credential.
+> As a **WordPress administrator**, I want website-scoped diagnostics, so that I can operate the integration without receiving a backend administrator credential.
 
 **Acceptance criteria**
 
-1. **Given** an active WordPress installation key with `operations:read`, **when** installation diagnostics or usage is requested, **then** only the safe operational projection required by the plugin is returned.
+1. **Given** an active website key with `operations:read`, **when** system diagnostics is requested, **then** only the safe operational projection required by the plugin is returned.
 2. **Given** an existing active WordPress installation key, **when** the scope migration runs, **then** `operations:read` is added idempotently without changing its secret, status, or other scopes.
-3. **Given** an installation key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative session or write authority.
-4. **Given** diagnostics or usage data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, content-record identities, raw errors, and admin-only deployment details are absent while bounded counts may remain grouped by data-source key.
-5. **Given** a degraded dependency or bounded usage query, **when** the route responds, **then** it preserves the documented stable shape, validation, and correlation behavior.
+3. **Given** a website key, **when** an `/admin/*` route is requested, **then** it remains forbidden and cannot gain administrative write authority.
+4. **Given** diagnostics data, **when** it is projected for WordPress, **then** credentials, visitor data, messages, queries, content-record identities, raw errors, and admin-only deployment details are absent while bounded counts may remain grouped by data-source key.
+5. **Given** a degraded dependency, **when** the route responds, **then** it preserves the documented stable shape and correlation behavior.
 
 **Tasks**
 
 - [ ] Add `operations:read` to new WordPress installation credentials and migrate active existing credential metadata idempotently.
-- [ ] Add `GET /installation/diagnostics` and `GET /installation/usage` behind installation authentication.
+- [ ] Add the website projection of `GET /system/diagnostics` behind API-key authentication.
 - [ ] Reuse the operations service through explicit safe installation projections rather than exposing `/admin/*` responses directly.
 - [ ] Document request, response, authorization, validation, privacy, and degraded-state contracts.
 - [ ] Add migration, provisioning, authorization, scoping, privacy, validation, route, and OpenAPI tests.
@@ -507,6 +506,9 @@ checkpoint, history route, deletion, anonymization, and retention rules are defi
 8. **Given** legacy authentication, site-identity, and installation-configuration data, **when** the global-configuration cutover migrations run, **then** credentials are cleared, the retrieval allowlist moves into the application configuration store, and the unused `installation_config` and `installation_domains` tables are removed.
 9. **Given** the application configuration table, **when** settings are persisted, **then** it is named `options`, has no synthetic ID, and stores each setting as a distinct `key` and JSON `value` row.
 10. **Given** application code needs to manage settings, **when** it accesses persistence, **then** the option repository exposes only generic `insert`, `get`, `update`, `delete`, `getByKeys`, and `updateMany` operations, contains no provider-specific helpers, and `updateMany` accepts only the option items.
+11. **Given** valid configured admin username and password values, **when** `POST /auth/admin` succeeds, **then** it returns a one-time plaintext `admin` API key with fixed admin scopes and persists no admin user or session row.
+12. **Given** the revised route contract, **when** clients provision, disconnect, inspect diagnostics, or update the provider, **then** they use `/auth/provision`, `/auth/disconnect`, `/system/diagnostics`, and `/system/provider`, and every former usage route is absent.
+13. **Given** any active website or admin API key, **when** it calls `POST /auth/disconnect`, **then** only that presented key is revoked.
 
 **Dependencies:** SV-US-014, SV-US-015
 **Priority:** Must have

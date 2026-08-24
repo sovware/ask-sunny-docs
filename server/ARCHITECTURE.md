@@ -38,9 +38,8 @@ LOG_LEVEL=info
 REQUEST_BODY_LIMIT=2mb
 
 ASK_SUNNY_INSTALLATION_PROVISIONING_KEY=replace-with-long-random-secret
-ASK_SUNNY_ADMIN_EMAIL=admin@example.com
+ASK_SUNNY_ADMIN_USERNAME=admin
 ASK_SUNNY_ADMIN_PASSWORD=replace-with-strong-password
-ASK_SUNNY_ADMIN_SESSION_TTL_SECONDS=86400
 
 DATABASE_URL=postgres://ask_sunny:strong-password@127.0.0.1:5432/ask_sunny
 PG_POOL_MAX=10
