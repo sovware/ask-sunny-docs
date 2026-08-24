@@ -97,6 +97,10 @@ Non-secret provider base URLs and the shared request timeout remain deployment c
 remain independently configured because generation and embedding providers do not have identical
 capabilities.
 
+The option repository is the single persistence boundary for the `options` table. It exposes insert,
+get, update, and delete operations for individual key/value items and owns the atomic
+provider-setting operations consumed by health, diagnostics, provisioning, and chat.
+
 Embedding requests use independent timeout and retry controls. `EMBEDDING_REQUEST_TIMEOUT_MS`
 defaults to 15000 and accepts 1000 through 60000. `EMBEDDING_MAX_RETRIES` defaults to 2 and accepts
 0 through 5; it counts retries after the initial request. `EMBEDDING_RETRY_BASE_DELAY_MS` defaults to
